@@ -61,13 +61,32 @@ async function stopBlink() {
 
 // --- Storage-Helfer ---------------------------------------------------------
 async function getState() {
-  const s = await api.storage.local.get(['baseline', 'current', 'settings', 'meta']);
+  const s = await api.storage.local.get(['baseline', 'current', 'settings', 'meta', 'history']);
   return {
     baseline: s.baseline || null,
     current: s.current || null,
     settings: Object.assign({}, DEFAULTS, s.settings || {}),
     meta: s.meta || {},
+    history: s.history || [],
   };
+}
+
+const HISTORY_MAX = 1000; // Logbuch begrenzen (Strukturänderungen sind selten)
+
+// Erkannte Strukturänderungen (Wechsel/Neu/Entfernt) dauerhaft mitschreiben.
+// Bewusst OHNE reine Bearbeitungen (edited/sectionEdited) -> die sind verrauscht.
+async function appendHistory(delta) {
+  const detectedAt = new Date().toISOString();
+  const events = [];
+  const push = (e) => events.push(Object.assign({ detectedAt }, e));
+  for (const s of delta.moved) push({ type: 'moved', id: s.id, name: s.name, color: s.color, from: s.from, to: s.to, at: s.updatedAt || detectedAt });
+  for (const s of delta.added) push({ type: 'added', id: s.id, name: s.name, color: s.color, at: s.updatedAt || detectedAt });
+  for (const s of delta.removed) push({ type: 'removed', id: s.id, name: s.name, color: s.color, at: detectedAt });
+  for (const s of delta.sectionAdded) push({ type: 'sectionAdded', id: s.id, name: s.title, at: s.updatedAt || detectedAt });
+  for (const s of delta.sectionRemoved) push({ type: 'sectionRemoved', id: s.id, name: s.title, at: detectedAt });
+  if (!events.length) return;
+  const { history } = await getState();
+  await api.storage.local.set({ history: history.concat(events).slice(-HISTORY_MAX) });
 }
 
 async function setMeta(patch) {
@@ -113,6 +132,7 @@ async function ingestSnapshot(snapshot, source, allowBlink = false) {
 
   if (!isFirstEver && diffCount(delta) > 0) {
     await notifyChanges(delta);
+    await appendHistory(delta); // Strukturänderungen ins Logbuch
   }
 
   // Blink-Schub, wenn es seit dem letzten Bestätigen unbestätigte Änderungen

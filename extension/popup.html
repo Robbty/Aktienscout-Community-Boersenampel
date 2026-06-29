@@ -21,10 +21,18 @@
     <ul id="changesList" class="changes-list"></ul>
   </section>
 
-  <section id="activity" class="activity" hidden>
+  <section id="history" class="activity" hidden>
     <div class="activity-head">
-      <h2>Aktivität letzte
+      <h2>Statuswechsel letzte
         <input id="activityDays" type="number" min="1" step="1" class="days-input" /> Tage</h2>
+    </div>
+    <ul id="historyList" class="changes-list"></ul>
+  </section>
+
+  <section id="activity" class="activity collapsed" hidden>
+    <div class="activity-head toggle" id="activityToggle">
+      <h2>Zuletzt bearbeitet (gleicher Zeitraum)</h2>
+      <span class="chev">▾</span>
     </div>
     <ul id="activityList" class="activity-list"></ul>
   </section>

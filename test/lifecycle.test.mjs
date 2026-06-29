@@ -29,7 +29,17 @@ function nd(sections) {
 }
 
 // --- Replik der Background-Regeln -------------------------------------------
-function makeStore() { return { baseline: null, current: null, meta: {} }; }
+function makeStore() { return { baseline: null, current: null, meta: {}, history: [] }; }
+function appendHistory(store, delta) {                 // entspricht appendHistory()
+  const detectedAt = 'now';
+  const ev = [];
+  for (const s of delta.moved) ev.push({ type: 'moved', name: s.name, at: s.updatedAt || detectedAt });
+  for (const s of delta.added) ev.push({ type: 'added', name: s.name, at: s.updatedAt || detectedAt });
+  for (const s of delta.removed) ev.push({ type: 'removed', name: s.name, at: detectedAt });
+  for (const s of delta.sectionAdded) ev.push({ type: 'sectionAdded', name: s.title, at: s.updatedAt || detectedAt });
+  for (const s of delta.sectionRemoved) ev.push({ type: 'sectionRemoved', name: s.title, at: detectedAt });
+  store.history = store.history.concat(ev);            // edited/sectionEdited bewusst NICHT
+}
 function ingestSuccess(store, snap, source) {
   const { baseline, current } = store;
   const delta = diffSnapshots(current, snap);
@@ -38,6 +48,7 @@ function ingestSuccess(store, snap, source) {
   else if (baseline && !baseline.sections && snap.sections) store.baseline = { ...baseline, sections: snap.sections };
   store.current = snap;
   store.meta = { lastPollOk: true, lastError: null, source };
+  if (!firstEver && diffCount(delta) > 0) appendHistory(store, delta);
   return { delta, notified: !firstEver && diffCount(delta) > 0 };
 }
 function pollFail(store, err) { store.meta = { ...store.meta, lastPollOk: false, lastError: err }; }
@@ -100,5 +111,24 @@ assert.deepEqual(names(d.sectionAdded), ['Neuigkeiten']);
 assert.deepEqual(names(d.sectionRemoved), ['rote Ampel']);
 assert.deepEqual(names(d.sectionEdited), ['Folgt in Kürze']);
 assert.equal(diffCount(d), 7, 'alle 7 Änderungen seit letztem Bestätigen sichtbar');
+
+// --- Logbuch (History) ------------------------------------------------------
+// Erstabruf A darf nichts loggen (keine echten Änderungen, nur Erstbefüllung).
+// Nach A->B sind genau die 5 Strukturänderungen drin, KEINE Bearbeitungen.
+assert.equal(store.history.length, 5, 'Logbuch: nur die 5 Strukturänderungen');
+const byType = (t) => store.history.filter((e) => e.type === t).map((e) => e.name);
+assert.deepEqual(byType('moved'), ['BMW']);
+assert.deepEqual(byType('added'), ['Allianz']);
+assert.deepEqual(byType('removed'), ['VW']);
+assert.deepEqual(byType('sectionAdded'), ['Neuigkeiten']);
+assert.deepEqual(byType('sectionRemoved'), ['rote Ampel']);
+assert.equal(store.history.some((e) => e.name === 'SAP'), false, 'Bearbeitung SAP NICHT im Logbuch');
+assert.equal(store.history.some((e) => e.name === 'Folgt in Kürze'), false, 'sectionEdited NICHT im Logbuch');
+// Datum stammt aus Skools updatedAt, wo vorhanden (z. B. BMW-Wechsel).
+assert.equal(store.history.find((e) => e.name === 'BMW').at, 't1', 'Wechsel-Datum = updatedAt der Aktie');
+
+// Erneuter identischer Abruf B -> keine neuen Logbuch-Einträge (keine Doppelung).
+ingestSuccess(store, B, 'fetch');
+assert.equal(store.history.length, 5, 'identischer Abruf fügt nichts hinzu');
 
 console.log('lifecycle.test.mjs: alle Assertions bestanden ✓');

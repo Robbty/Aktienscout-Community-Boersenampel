@@ -58,16 +58,23 @@ header {
 .chg-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chg-detail { font-size: 11px; color: var(--muted); }
 
-/* Aktivität (letzte X Tage) */
+/* Statuswechsel-Logbuch + "zuletzt bearbeitet" (letzte X Tage) */
 .activity { padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.activity-head { display: flex; align-items: center; justify-content: space-between; }
 .activity-head h2 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+.activity-head.toggle { cursor: pointer; user-select: none; }
+.activity-head .chev { color: var(--muted); transition: transform .15s; }
+.activity.collapsed .chev { transform: rotate(-90deg); }
+.activity.collapsed .activity-list { display: none; }
 .days-input { width: 44px; padding: 2px 5px; border: 1px solid var(--line); border-radius: 6px; font-size: 12px; text-transform: none; }
 .activity-list { list-style: none; margin: 6px 0 0; padding: 0; max-height: 180px; overflow-y: auto; }
 .activity-list li { display: flex; align-items: center; gap: 7px; padding: 4px 6px; border-radius: 6px; cursor: pointer; }
 .activity-list li:hover { background: var(--hover); }
 .activity-list .empty { color: var(--muted); cursor: default; }
 .activity-list .stock-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.activity-list .when { font-size: 11px; color: var(--muted); white-space: nowrap; }
+.when { font-size: 11px; color: var(--muted); white-space: nowrap; }
+#historyList li { display: flex; align-items: center; gap: 6px; }
+#historyList .chg-detail { flex: 1; }
 
 /* Suche */
 .searchbar { padding: 8px 12px 4px; }

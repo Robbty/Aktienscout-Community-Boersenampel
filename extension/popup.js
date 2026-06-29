@@ -185,6 +185,61 @@ function renderGroups() {
   }
 }
 
+// --- Render: Statuswechsel-Logbuch (letzte X Tage) --------------------------
+function historyMeta(e) {
+  switch (e.type) {
+    case 'moved': return { label: 'Wechsel', cls: 'moved', detail: (SECTION_LABEL[e.from] || e.from) + ' → ' + (SECTION_LABEL[e.to] || e.to), openable: true };
+    case 'added': return { label: 'Neu', cls: 'added', detail: SECTION_LABEL[e.color] || '', openable: true };
+    case 'removed': return { label: 'Entfernt', cls: 'removed', detail: '', openable: false };
+    case 'sectionAdded': return { label: 'Neu', cls: 'added', detail: 'Menüpunkt', openable: true };
+    case 'sectionRemoved': return { label: 'Entfernt', cls: 'removed', detail: 'Menüpunkt', openable: false };
+    default: return { label: '?', cls: '', detail: '', openable: false };
+  }
+}
+
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  const days = (state.settings && state.settings.activityDays) || 7;
+  const cutoff = Date.now() - days * 86400000;
+  const rows = (state.history || [])
+    .map((e) => ({ e, ts: Date.parse(e.at) }))
+    .filter((r) => !isNaN(r.ts) && r.ts >= cutoff)
+    .sort((a, b) => b.ts - a.ts);
+
+  list.innerHTML = '';
+  if (rows.length === 0) {
+    const li = document.createElement('li');
+    li.className = 'empty';
+    li.textContent = 'Noch keine Statuswechsel im Zeitraum (wird ab jetzt mitgeschrieben).';
+    list.appendChild(li);
+    return;
+  }
+  for (const { e, ts } of rows) {
+    const m = historyMeta(e);
+    const li = document.createElement('li');
+    const tag = document.createElement('span');
+    tag.className = 'tag ' + m.cls;
+    tag.textContent = m.label;
+    const name = document.createElement('span');
+    name.className = 'chg-name';
+    name.textContent = e.name;
+    const detail = document.createElement('span');
+    detail.className = 'chg-detail';
+    detail.textContent = m.detail;
+    const when = document.createElement('span');
+    when.className = 'when';
+    when.textContent = relDays(ts) + ' · ' + new Date(ts).toLocaleDateString('de-DE');
+    li.append(tag, name, detail, when);
+    if (m.openable) {
+      li.title = 'In Skool öffnen';
+      li.addEventListener('click', () => openStock(e.id));
+    } else {
+      li.style.cursor = 'default';
+    }
+    list.appendChild(li);
+  }
+}
+
 // --- Render: Aktivität (letzte X Tage) aus updatedAt ------------------------
 function renderActivity() {
   const list = document.getElementById('activityList');
@@ -234,6 +289,7 @@ function isLoggedIn() {
 
 function setDataVisible(ok) {
   document.getElementById('changes').hidden = !ok;
+  document.getElementById('history').hidden = !ok;
   document.getElementById('activity').hidden = !ok;
   document.querySelector('.searchbar').hidden = !ok;
   document.getElementById('groups').hidden = !ok;
@@ -245,6 +301,7 @@ function renderAll() {
   setDataVisible(ok);
   if (ok) {
     renderChanges();
+    renderHistory();
     renderActivity();
     renderGroups();
   }
@@ -301,8 +358,13 @@ document.getElementById('blink').addEventListener('change', async (e) => {
 document.getElementById('activityDays').addEventListener('input', async (e) => {
   const days = Math.max(1, Number(e.currentTarget.value) || 7);
   if (state.settings) state.settings.activityDays = days;
-  renderActivity();                      // sofort aktualisieren
+  renderHistory();                       // beide Listen sofort aktualisieren
+  renderActivity();
   await send({ type: 'setActivityDays', days }); // und persistieren
+});
+
+document.getElementById('activityToggle').addEventListener('click', () => {
+  document.getElementById('activity').classList.toggle('collapsed');
 });
 
 document.getElementById('saveInterval').addEventListener('click', async () => {
