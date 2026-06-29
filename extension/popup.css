@@ -34,6 +34,10 @@ header {
 .lights .r { background: var(--red); }
 .status { margin-top: 4px; font-size: 11px; color: var(--muted); }
 .status.error { color: var(--red); }
+.status-head { display: block; font-size: 15px; font-weight: 700; margin-bottom: 2px; }
+.status-hint { display: block; font-size: 11px; }
+.status.error .status-head { color: var(--red); }
+.status.error .status-hint { color: var(--muted); }
 
 /* Änderungen */
 .changes { padding: 8px 12px; border-bottom: 1px solid var(--line); }

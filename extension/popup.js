@@ -29,13 +29,17 @@ function renderStatus() {
   const el = document.getElementById('status');
   const meta = state.meta || {};
   if (!state.current) {
-    if (meta.lastPollOk === false && meta.lastError) {
-      el.textContent = 'Abruf fehlgeschlagen: ' + meta.lastError +
-        ' – in Firefox bitte die Skool-Ampel-Seite öffnen (eingeloggt).';
+    if (meta.lastPollOk === false) {
+      el.innerHTML =
+        '<span class="status-head">Eingeloggt?</span>' +
+        '<span class="status-hint">Melde dich bei skool.com an – das genügt. ' +
+        'Du musst weder auf der Börsenampel-Seite noch in der richtigen Community sein. ' +
+        'Danach „Jetzt prüfen".</span>';
+      el.classList.add('error');
     } else {
-      el.textContent = 'Noch keine Daten – öffne die Skool-Ampel-Seite oder klicke „Jetzt prüfen".';
+      el.textContent = 'Noch keine Daten – bei skool.com anmelden und „Jetzt prüfen".';
+      el.classList.remove('error');
     }
-    el.classList.toggle('error', meta.lastPollOk === false);
     return;
   }
   const src = meta.source === 'page' ? 'Seitenbesuch' : 'Abruf';
