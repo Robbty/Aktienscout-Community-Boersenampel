@@ -14,8 +14,8 @@
 node_modules/
 npm-debug.log*
 
-# Generierte Browser-Builds (per `node build.mjs`)
-dist/
+# Hinweis: dist/ wird bewusst MIT eingecheckt, damit Nicht-Entwickler die
+# fertigen Browser-Ordner ohne Build laden können. Erzeugt via `node build.mjs`.
 
 # Verpackte Extension
 *.zip

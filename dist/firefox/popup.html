@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header>
+    <div class="title">
+      <span class="lights" aria-hidden="true"><i class="g"></i><i class="y"></i><i class="r"></i></span>
+      <span id="courseTitle">Börsenampel</span>
+    </div>
+    <div id="status" class="status"></div>
+  </header>
+
+  <div class="content" id="content">
+
+  <section id="changes" class="changes" hidden>
+    <div class="changes-head">
+      <h2>Seit deinem letzten Besuch</h2>
+      <button id="ackBtn" class="link-btn" hidden>Als gesehen markieren</button>
+    </div>
+    <ul id="changesList" class="changes-list"></ul>
+  </section>
+
+  <section id="history" class="activity" hidden>
+    <div class="activity-head">
+      <h2>Statuswechsel letzte
+        <input id="activityDays" type="number" min="1" step="1" class="days-input" /> Tage</h2>
+    </div>
+    <ul id="historyList" class="changes-list"></ul>
+  </section>
+
+  <section id="activity" class="activity collapsed" hidden>
+    <div class="activity-head toggle" id="activityToggle">
+      <h2>Zuletzt bearbeitet (gleicher Zeitraum)</h2>
+      <span class="chev">▾</span>
+    </div>
+    <ul id="activityList" class="activity-list"></ul>
+  </section>
+
+  <div class="searchbar" hidden>
+    <input id="search" type="search" placeholder="Aktie suchen…" autocomplete="off" />
+  </div>
+
+  <main id="groups" class="groups" hidden></main>
+
+  </div><!-- /content -->
+
+  <footer>
+    <div class="settings">
+      <label for="interval">Prüfen alle</label>
+      <input id="interval" type="number" min="1" step="1" /> Min.
+      <button id="saveInterval" class="link-btn">Speichern</button>
+    </div>
+    <label class="settings blink-opt"><input id="blink" type="checkbox" /> Bei Änderung blinken</label>
+    <button id="pollNow" class="primary-btn">Jetzt prüfen</button>
+  </footer>
+
+  <script src="lib/ampel.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
