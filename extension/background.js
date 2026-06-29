@@ -113,7 +113,7 @@ async function refreshBadge() {
 // quelle: 'fetch' (Hintergrund) oder 'page' (Content-Script).
 async function ingestSnapshot(snapshot, source, allowBlink = false) {
   if (!snapshot) return;
-  const { baseline, current, settings } = await getState();
+  const { baseline, current, settings, meta } = await getState();
 
   // Delta zum vorherigen Abruf -> nur dann benachrichtigen, wenn neu.
   const delta = diffSnapshots(current, snapshot);
@@ -129,7 +129,10 @@ async function ingestSnapshot(snapshot, source, allowBlink = false) {
     toSet.baseline = Object.assign({}, baseline, { sections: snapshot.sections });
   }
   await api.storage.local.set(toSet);
-  await setMeta({ lastPollAt: Date.now(), lastPollOk: true, lastError: null, source });
+  const metaPatch = { lastPollAt: Date.now(), lastPollOk: true, lastError: null, source };
+  // Beginn der Überwachung einmalig festhalten (für ehrliche "seit"-Anzeige).
+  if (!meta.watchingSince) metaPatch.watchingSince = new Date().toISOString();
+  await setMeta(metaPatch);
   await refreshBadge();
 
   if (!isFirstEver && diffCount(delta) > 0) {

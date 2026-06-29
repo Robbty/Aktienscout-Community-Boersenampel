@@ -197,6 +197,23 @@ function historyMeta(e) {
   }
 }
 
+// Ehrliche Leer-Meldung — abhängig davon, ob überhaupt schon etwas geloggt wurde
+// und seit wann überwacht wird.
+function emptyHistoryText(days) {
+  const total = (state.history || []).length;
+  if (total > 0) {
+    return 'Keine Statuswechsel in den letzten ' + days + ' Tagen. Ältere sind vorhanden – Zeitraum erhöhen.';
+  }
+  const sinceTs = state.meta && state.meta.watchingSince ? Date.parse(state.meta.watchingSince) : NaN;
+  if (!isNaN(sinceTs)) {
+    const sinceDays = Math.floor((Date.now() - sinceTs) / 86400000);
+    const seit = new Date(sinceTs).toLocaleDateString('de-DE');
+    if (sinceDays >= 1) return 'Seit ' + seit + ' überwacht – bisher keine Statuswechsel.';
+    return 'Überwachung läuft (seit heute) – bisher keine Statuswechsel.';
+  }
+  return 'Noch keine Statuswechsel aufgezeichnet (wird ab jetzt mitgeschrieben).';
+}
+
 function renderHistory() {
   const list = document.getElementById('historyList');
   const days = (state.settings && state.settings.activityDays) || 7;
@@ -210,7 +227,7 @@ function renderHistory() {
   if (rows.length === 0) {
     const li = document.createElement('li');
     li.className = 'empty';
-    li.textContent = 'Noch keine Statuswechsel im Zeitraum (wird ab jetzt mitgeschrieben).';
+    li.textContent = emptyHistoryText(days);
     list.appendChild(li);
     return;
   }

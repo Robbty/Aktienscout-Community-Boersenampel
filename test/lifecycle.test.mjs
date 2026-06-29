@@ -47,7 +47,8 @@ function ingestSuccess(store, snap, source) {
   if (firstEver) store.baseline = snap;
   else if (baseline && !baseline.sections && snap.sections) store.baseline = { ...baseline, sections: snap.sections };
   store.current = snap;
-  store.meta = { lastPollOk: true, lastError: null, source };
+  const watchingSince = store.meta.watchingSince || 'start'; // einmalig festhalten
+  store.meta = { lastPollOk: true, lastError: null, source, watchingSince };
   if (!firstEver && diffCount(delta) > 0) appendHistory(store, delta);
   return { delta, notified: !firstEver && diffCount(delta) > 0 };
 }
@@ -73,6 +74,8 @@ let res = ingestSuccess(store, A, 'fetch');
 assert.equal(res.notified, false, 'Erstabruf darf nicht benachrichtigen');
 assert.equal(popupShowsData(store), true);
 assert.equal(diffCount(popupDiff(store)), 0, 'frisch installiert: keine Änderungen');
+
+assert.equal(store.meta.watchingSince, 'start', 'Überwachungsbeginn beim Erstabruf gesetzt');
 
 // 2) Nutzer bestätigt.
 acknowledge(store);
@@ -130,6 +133,7 @@ assert.equal(store.history.find((e) => e.name === 'BMW').at, 't1', 'Wechsel-Datu
 // Erneuter identischer Abruf B -> keine neuen Logbuch-Einträge (keine Doppelung).
 ingestSuccess(store, B, 'fetch');
 assert.equal(store.history.length, 5, 'identischer Abruf fügt nichts hinzu');
+assert.equal(store.meta.watchingSince, 'start', 'Überwachungsbeginn bleibt stabil');
 
 // --- Logbuch-Begrenzung: älteste ÄNDERUNG (nach Datum) zuerst löschen --------
 // Bewusst NICHT nach Einfügereihenfolge: der zuletzt eingefügte Eintrag hat hier
