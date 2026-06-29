@@ -57,6 +57,10 @@ async function ingestSnapshot(snapshot, source) {
   if (isFirstEver) {
     // Erstinstallation: aktuellen Zustand als Baseline setzen, nichts melden.
     toSet.baseline = snapshot;
+  } else if (baseline && !baseline.sections && snapshot.sections) {
+    // Migration nach Update: Sektions-Baseline einmalig nachziehen, ohne den
+    // Aktien-Vergleichspunkt zu verändern -> verhindert "alle Menüpunkte neu".
+    toSet.baseline = Object.assign({}, baseline, { sections: snapshot.sections });
   }
   await chrome.storage.local.set(toSet);
   await setMeta({ lastPollAt: Date.now(), lastPollOk: true, lastError: null, source });
@@ -93,14 +97,19 @@ async function pollViaFetch() {
 
 // --- Benachrichtigung -------------------------------------------------------
 async function notifyChanges(delta) {
+  const sectionChanged = delta.sectionAdded.length + delta.sectionRemoved.length + delta.sectionEdited.length;
   const parts = [];
   if (delta.moved.length) parts.push(delta.moved.length + ' gewechselt');
   if (delta.added.length) parts.push(delta.added.length + ' neu');
   if (delta.edited.length) parts.push(delta.edited.length + ' bearbeitet');
   if (delta.removed.length) parts.push(delta.removed.length + ' entfernt');
+  if (sectionChanged) parts.push(sectionChanged + ' Menüpunkt' + (sectionChanged > 1 ? 'e' : ''));
 
-  // Bis zu drei konkrete Aktien als Vorschau.
+  // Bis zu drei konkrete Einträge als Vorschau.
   const sample = []
+    .concat(delta.sectionAdded.map((s) => '+ ' + s.title + ' (Menüpunkt)'))
+    .concat(delta.sectionRemoved.map((s) => '− ' + s.title + ' (Menüpunkt)'))
+    .concat(delta.sectionEdited.map((s) => '✎ ' + s.title + ' (Menüpunkt)'))
     .concat(delta.moved.map((s) => '↔ ' + s.name))
     .concat(delta.added.map((s) => '+ ' + s.name))
     .concat(delta.edited.map((s) => '✎ ' + s.name))

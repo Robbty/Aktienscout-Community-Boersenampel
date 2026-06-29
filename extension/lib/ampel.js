@@ -51,9 +51,18 @@ function buildSnapshot(nextData) {
   if (!root || !root.course) return null;
 
   const stocks = {};
+  const sections = {}; // map id -> Sektion (Menüpunkt) inkl. Info-Seiten ohne Aktien
   let count = 0;
   for (const section of root.children || []) {
     const sectionTitle = section.course.metadata.title;
+    const childCount = (section.children || []).length;
+    sections[section.course.id] = {
+      id: section.course.id,
+      title: sectionTitle,
+      color: ampelColor(sectionTitle),
+      updatedAt: section.course.updatedAt,
+      hasStocks: childCount > 0,
+    };
     for (const st of section.children || []) {
       const id = st.course.id;
       stocks[id] = {
@@ -72,6 +81,7 @@ function buildSnapshot(nextData) {
     courseUpdatedAt: root.course.updatedAt,
     stockCount: count,
     stocks, // map id -> stock
+    sections, // map id -> section
   };
 }
 
@@ -91,7 +101,10 @@ function buildSnapshotFromDocument(doc) {
 // --- Diff zwischen zwei Snapshots -------------------------------------------
 // old/new sind Snapshots (oder null). Liefert die vier Änderungsarten.
 function diffSnapshots(oldSnap, newSnap) {
-  const result = { added: [], removed: [], moved: [], edited: [] };
+  const result = {
+    added: [], removed: [], moved: [], edited: [],
+    sectionAdded: [], sectionRemoved: [], sectionEdited: [],
+  };
   if (!newSnap) return result;
   const oldStocks = (oldSnap && oldSnap.stocks) || {};
   const newStocks = newSnap.stocks || {};
@@ -110,12 +123,35 @@ function diffSnapshots(oldSnap, newSnap) {
   for (const id of Object.keys(oldStocks)) {
     if (!newStocks[id]) result.removed.push({ ...oldStocks[id] });
   }
+
+  // Sektionen (Menüpunkte) vergleichen — nur wenn der alte Snapshot sie schon
+  // kennt, sonst gäbe es nach einem Update Fehlalarme ("alles neu").
+  if (oldSnap && oldSnap.sections && newSnap.sections) {
+    const oldSec = oldSnap.sections;
+    const newSec = newSnap.sections;
+    for (const id of Object.keys(newSec)) {
+      const n = newSec[id];
+      const o = oldSec[id];
+      if (!o) {
+        result.sectionAdded.push({ ...n });
+      } else if (!n.hasStocks && o.updatedAt !== n.updatedAt) {
+        // Inhaltsänderung einer Info-Seite (Aktien-Wechsel deckt Ampeln bereits ab).
+        result.sectionEdited.push({ ...n, prevUpdatedAt: o.updatedAt });
+      }
+    }
+    for (const id of Object.keys(oldSec)) {
+      if (!newSec[id]) result.sectionRemoved.push({ ...oldSec[id] });
+    }
+  }
   return result;
 }
 
 function diffCount(diff) {
   if (!diff) return 0;
-  return diff.added.length + diff.removed.length + diff.moved.length + diff.edited.length;
+  return (
+    diff.added.length + diff.removed.length + diff.moved.length + diff.edited.length +
+    diff.sectionAdded.length + diff.sectionRemoved.length + diff.sectionEdited.length
+  );
 }
 
 // In Service-Worker, Content-Script und Popup gleichermaßen erreichbar machen.

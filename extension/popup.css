@@ -74,6 +74,7 @@ header {
 .dot.other { background: var(--muted); }
 .group-title { font-weight: 600; flex: 1; }
 .group-count { color: var(--muted); font-size: 12px; }
+.changed-chip { font-size: 10px; font-weight: 700; color: #3c2c00; background: #fde293; padding: 1px 7px; border-radius: 10px; white-space: nowrap; }
 .chev { color: var(--muted); transition: transform .15s; }
 .group.collapsed .chev { transform: rotate(-90deg); }
 .group.collapsed .stock-list { display: none; }

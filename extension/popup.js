@@ -7,7 +7,7 @@ const SECTION_LABEL = { green: 'Grüne Ampel', yellow: 'Gelbe Ampel', red: 'Rote
 
 let state = null;       // { baseline, current, settings, meta, diff }
 let changedIds = new Set();
-let collapsed = { green: false, yellow: false, red: false, other: false };
+let collapsed = { green: true, yellow: true, red: true, other: true };
 
 function send(msg) {
   return new Promise((resolve) => chrome.runtime.sendMessage(msg, resolve));
@@ -41,11 +41,16 @@ function renderStatus() {
 function renderChanges() {
   const list = document.getElementById('changesList');
   const ackBtn = document.getElementById('ackBtn');
-  const d = state.diff || { added: [], removed: [], moved: [], edited: [] };
+  const empty = { added: [], removed: [], moved: [], edited: [], sectionAdded: [], sectionRemoved: [], sectionEdited: [] };
+  const d = Object.assign({}, empty, state.diff || {});
   list.innerHTML = '';
   changedIds = new Set();
 
   const rows = [];
+  // Menüpunkte zuerst, damit strukturelle Änderungen oben stehen.
+  d.sectionAdded.forEach((s) => rows.push({ s: { id: s.id, name: s.title }, tag: 'added', label: 'Neu', detail: 'Menüpunkt' }));
+  d.sectionRemoved.forEach((s) => rows.push({ s: { id: s.id, name: s.title }, tag: 'removed', label: 'Entfernt', detail: 'Menüpunkt' }));
+  d.sectionEdited.forEach((s) => rows.push({ s: { id: s.id, name: s.title }, tag: 'edited', label: 'Bearbeitet', detail: 'Menüpunkt' }));
   d.moved.forEach((s) => rows.push({ s, tag: 'moved', label: 'Wechsel',
     detail: (SECTION_LABEL[s.from] || s.from) + ' → ' + (SECTION_LABEL[s.to] || s.to) }));
   d.added.forEach((s) => rows.push({ s, tag: 'added', label: 'Neu', detail: SECTION_LABEL[colorOf(s)] }));
@@ -115,11 +120,13 @@ function renderGroups() {
     const group = document.createElement('section');
     group.className = 'group' + (collapsed[color] && !filter ? ' collapsed' : '');
 
+    const changedInGroup = all.filter((s) => changedIds.has(s.id)).length;
     const head = document.createElement('div');
     head.className = 'group-head';
     head.innerHTML =
       '<span class="dot ' + color + '"></span>' +
       '<span class="group-title">' + SECTION_LABEL[color] + '</span>' +
+      (changedInGroup ? '<span class="changed-chip" title="geänderte Aktien">' + changedInGroup + ' geändert</span>' : '') +
       '<span class="group-count">' + items.length + (filter ? '/' + all.length : '') + '</span>' +
       '<span class="chev">▾</span>';
     head.addEventListener('click', () => {
