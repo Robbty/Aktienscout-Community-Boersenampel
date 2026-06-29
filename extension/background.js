@@ -24,8 +24,40 @@ if (typeof importScripts === 'function') {
   importScripts('lib/ampel.js');
 }
 
-const DEFAULTS = { intervalMinutes: 60 };
+const DEFAULTS = { intervalMinutes: 60, blinkEnabled: true };
 const ALARM = 'poll';
+
+// Icon-Frames fürs Blinken (normal = Lichter an, off = erloschen).
+const ICON_ON = { 16: 'icons/icon16.png', 48: 'icons/icon48.png', 128: 'icons/icon128.png' };
+const ICON_OFF = { 16: 'icons/off16.png', 48: 'icons/off48.png', 128: 'icons/off128.png' };
+
+// --- Icon / Blinken ---------------------------------------------------------
+// In MV3 schläft der Worker nach ~30 s ein -> kein Dauerblinken. Wir blinken
+// daher in kurzen Schüben (während der Worker ohnehin wach ist) und lassen
+// danach das Badge als ruhigen Hinweis stehen.
+let blinkTimer = null;
+let blinkUntil = 0;
+let blinkOn = true;
+
+async function setIcon(frame) {
+  try { await api.action.setIcon({ path: frame }); } catch (e) { /* Icon optional */ }
+}
+
+function startBlink(durationMs = 12000) {
+  blinkUntil = Date.now() + durationMs;
+  if (blinkTimer) return; // läuft bereits -> nur Dauer verlängert
+  blinkOn = true;
+  blinkTimer = setInterval(async () => {
+    if (Date.now() >= blinkUntil) { await stopBlink(); return; }
+    blinkOn = !blinkOn;
+    await setIcon(blinkOn ? ICON_ON : ICON_OFF);
+  }, 500);
+}
+
+async function stopBlink() {
+  if (blinkTimer) { clearInterval(blinkTimer); blinkTimer = null; }
+  await setIcon(ICON_ON); // immer mit sichtbarem Normal-Icon enden
+}
 
 // --- Storage-Helfer ---------------------------------------------------------
 async function getState() {
@@ -49,13 +81,18 @@ async function refreshBadge() {
   const n = diffCount(diffSnapshots(baseline, current));
   await api.action.setBadgeBackgroundColor({ color: '#d93025' });
   await api.action.setBadgeText({ text: n > 0 ? String(n) : '' });
+  if (n === 0) {
+    await stopBlink();           // alles gesehen -> Icon normal, Blinken aus
+  } else if (!blinkTimer) {
+    await setIcon(ICON_ON);       // nicht aktiv am Blinken -> festgeklemmtes Frame heilen
+  }
 }
 
 // --- Kernablauf: neuen Snapshot übernehmen ----------------------------------
 // quelle: 'fetch' (Hintergrund) oder 'page' (Content-Script).
-async function ingestSnapshot(snapshot, source) {
+async function ingestSnapshot(snapshot, source, allowBlink = false) {
   if (!snapshot) return;
-  const { baseline, current } = await getState();
+  const { baseline, current, settings } = await getState();
 
   // Delta zum vorherigen Abruf -> nur dann benachrichtigen, wenn neu.
   const delta = diffSnapshots(current, snapshot);
@@ -77,10 +114,17 @@ async function ingestSnapshot(snapshot, source) {
   if (!isFirstEver && diffCount(delta) > 0) {
     await notifyChanges(delta);
   }
+
+  // Blink-Schub, wenn es seit dem letzten Bestätigen unbestätigte Änderungen
+  // gibt (nicht bei Erstinstallation, nicht wenn vom Nutzer abgeschaltet).
+  const pending = diffCount(diffSnapshots(toSet.baseline || baseline, snapshot));
+  if (allowBlink && !isFirstEver && settings.blinkEnabled && pending > 0) {
+    startBlink();
+  }
 }
 
 // --- Hintergrund-Abruf ------------------------------------------------------
-async function pollViaFetch() {
+async function pollViaFetch(allowBlink = false) {
   try {
     const res = await fetch(AMPEL_CONFIG.classroomUrl, {
       credentials: 'include',
@@ -94,7 +138,7 @@ async function pollViaFetch() {
       // Vermutlich ausgeloggt / kein Zugriff -> nicht als Erfolg werten.
       throw new Error('Keine Ampel-Daten (eingeloggt?)');
     }
-    await ingestSnapshot(snapshot, 'fetch');
+    await ingestSnapshot(snapshot, 'fetch', allowBlink);
     return { ok: true };
   } catch (e) {
     await setMeta({ lastPollAt: Date.now(), lastPollOk: false, lastError: String(e.message || e) });
@@ -153,18 +197,26 @@ async function setInterval(minutes) {
   await ensureAlarm();
 }
 
+async function setBlinkEnabled(enabled) {
+  const { settings } = await getState();
+  await api.storage.local.set({ settings: Object.assign({}, settings, { blinkEnabled: !!enabled }) });
+  if (!enabled) await stopBlink();
+}
+
 api.runtime.onInstalled.addListener(async () => {
   await ensureAlarm();
-  await pollViaFetch();
+  await setIcon(ICON_ON);
+  await pollViaFetch(false); // beim Installieren nicht blinken
 });
 
 api.runtime.onStartup.addListener(async () => {
   await ensureAlarm();
-  await pollViaFetch();
+  await setIcon(ICON_ON);
+  await pollViaFetch(false); // beim Browserstart nicht blinken
 });
 
 api.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === ALARM) pollViaFetch();
+  if (alarm.name === ALARM) pollViaFetch(true); // Hintergrund-Abruf darf blinken
 });
 
 // Klick auf eine Benachrichtigung öffnet die Ampel-Seite.
@@ -183,14 +235,15 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         break;
       }
       case 'pollNow': {
-        const r = await pollViaFetch();
+        // Vom Popup ausgelöst -> nicht blinken (Nutzer schaut ohnehin hin).
+        const r = await pollViaFetch(false);
         const state = await getState();
         sendResponse({ ...r, ...state, diff: diffSnapshots(state.baseline, state.current) });
         break;
       }
       case 'capture': {
         // Content-Script liefert einen garantiert eingeloggten Snapshot.
-        await ingestSnapshot(msg.snapshot, 'page');
+        await ingestSnapshot(msg.snapshot, 'page', true);
         sendResponse({ ok: true });
         break;
       }
@@ -202,6 +255,11 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
       case 'setInterval': {
         await setInterval(msg.minutes);
+        sendResponse({ ok: true });
+        break;
+      }
+      case 'setBlink': {
+        await setBlinkEnabled(msg.enabled);
         sendResponse({ ok: true });
         break;
       }

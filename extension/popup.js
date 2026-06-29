@@ -204,6 +204,8 @@ function renderAll() {
   }
   const iv = document.getElementById('interval');
   if (state.settings && document.activeElement !== iv) iv.value = state.settings.intervalMinutes;
+  const blink = document.getElementById('blink');
+  if (state.settings) blink.checked = state.settings.blinkEnabled !== false;
 }
 
 function showChecking() {
@@ -240,6 +242,12 @@ document.getElementById('pollNow').addEventListener('click', async (e) => {
 document.getElementById('ackBtn').addEventListener('click', async () => {
   state = await send({ type: 'acknowledge' });
   renderAll();
+});
+
+document.getElementById('blink').addEventListener('change', async (e) => {
+  const enabled = e.currentTarget.checked;
+  await send({ type: 'setBlink', enabled });
+  if (state.settings) state.settings.blinkEnabled = enabled;
 });
 
 document.getElementById('saveInterval').addEventListener('click', async () => {
