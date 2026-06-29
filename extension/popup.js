@@ -348,7 +348,25 @@ async function init() {
   renderAll();
 }
 
-document.getElementById('search').addEventListener('input', renderGroups);
+function currentMatches() {
+  const filter = document.getElementById('search').value.trim().toLowerCase();
+  if (!filter) return [];
+  const stocks = (state && state.current && state.current.stocks) || {};
+  return Object.keys(stocks).map((id) => stocks[id]).filter((s) => s.name.toLowerCase().includes(filter));
+}
+
+const searchEl = document.getElementById('search');
+searchEl.addEventListener('input', () => {
+  // Beim Suchen oberen Bereich ausblenden, damit die Treffer sichtbar sind.
+  document.body.classList.toggle('searching', searchEl.value.trim() !== '');
+  renderGroups();
+});
+searchEl.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    const matches = currentMatches();
+    if (matches.length === 1) openStock(matches[0].id); // genau ein Treffer -> öffnen
+  }
+});
 
 document.getElementById('pollNow').addEventListener('click', async (e) => {
   const btn = e.currentTarget;
