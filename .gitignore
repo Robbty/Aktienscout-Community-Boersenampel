@@ -14,6 +14,9 @@
 node_modules/
 npm-debug.log*
 
+# Generierte Browser-Builds (per `node build.mjs`)
+dist/
+
 # Verpackte Extension
 *.zip
 *.crx

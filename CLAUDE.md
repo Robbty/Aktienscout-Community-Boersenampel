@@ -4,7 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-Pre-implementation. No source code, build system, or git repo exists yet — only a reverse-engineered data model (`boersenampel-baseline.json`) and the design below. The first deliverable is a browser add-on (Phase 1). Do not invent build/lint/test commands; none exist until the add-on is scaffolded.
+Phase 1 shipped: a cross-browser MV3 web extension lives in `extension/`. Phases 2–3 (per-stock detail view, portfolio tracker) are still open — see the phase table below.
+
+## Layout & build
+
+- `extension/` — the single source of truth, written cross-browser. Loadable directly in Chrome as an unpacked extension (its `manifest.json` is the Chrome variant). `manifest.firefox.json` sits alongside it and is ignored by Chrome.
+- `node build.mjs` — assembles `dist/chrome/` and `dist/firefox/` from `extension/`, swapping in the right manifest. `dist/` is git-ignored. Load `dist/firefox/` via Firefox `about:debugging` → "Load Temporary Add-on" (pick its `manifest.json`).
+- No package.json / no deps. Logic is unit-checked ad hoc with `node` (load `extension/lib/ampel.js` into a `vm` context and exercise `buildSnapshot` / `diffSnapshots`). Syntax-check with `node --check <file>`.
+
+### Cross-browser specifics (don't regress these)
+
+- All extension JS uses `const api = globalThis.browser || globalThis.chrome;` — both expose promise-based MV3 APIs, so `await api.storage.local.get(...)` works in each. Never go back to bare `chrome.*`.
+- Chrome background is a `service_worker` that pulls shared code via `importScripts('lib/ampel.js')`, guarded by `if (typeof importScripts === 'function')`. Firefox background is `"scripts": ["lib/ampel.js", "background.js"]` (event page; no `importScripts`). `lib/ampel.js` therefore also assigns its functions onto `globalThis` so both load paths work.
+- `popup.js` talks to the worker via `api.runtime.sendMessage(msg)` (promise form) — not the callback form, which Firefox's `browser.*` ignores.
 
 ## What this project is
 
@@ -41,10 +53,16 @@ Chosen because the add-on runs inside the user's already-logged-in browser sessi
 - Background polling via `chrome.alarms` + a cookie-authenticated `fetch()` of the page (same-origin → cookies attached), even with no tab open. Parse `__NEXT_DATA__` out of the returned HTML.
 - Target Chromium first (covers Chrome/Edge/Brave/Opera with one build), then port to Firefox (core JS is shared; only manifest differences).
 
-Planned phases:
-1. Read ampel + **diff since last visit** (new / moved / edited stocks via `updatedAt`).
-2. Collapsible ampeln with a **search box**, configurable poll interval, change notifications, per-stock detail view (Tier 2 content fetch).
+Phases:
+1. **Done.** Read ampel + diff since last visit (added/moved/edited/removed stocks via `updatedAt`), collapsible ampeln with search box, configurable poll interval, badge + notifications. Also tracks **section ("Menüpunkt") changes** — added/removed sections and edited info-pages ("Achtung zuerst lesen", "Folgt in Kürze"); ampel sections are skipped there to avoid double-reporting their stock churn.
+2. Per-stock **detail view** (Tier 2 content fetch — the rich body that is not in `__NEXT_DATA__`).
 3. **Portfolio tracker** (buy/where/when/entry price/qty/current price/PnL/sold/profit/holding-days + table). Decoupled from Skool; needs an external stock-price API (free APIs are rate-limited — open question, deferred until Phase 3).
+
+### How Phase 1 works (the two data paths + state model)
+
+- **Two ways data arrives, by design.** (a) `content.js` runs on the ampel page and reads `__NEXT_DATA__` from the live DOM on every visit — guaranteed-authenticated, the robust path. (b) `background.js` does a cookie-authenticated `fetch()` on an alarm for true background polling without an open tab. If Chrome withholds session cookies from the background fetch (SameSite), path (a) still keeps data fresh. Both funnel through `ingestSnapshot()`.
+- **State in `storage.local`:** `current` (latest snapshot), `baseline` (state the user last acknowledged via "Als gesehen markieren"), `settings.intervalMinutes`, `meta`. The popup's "since last visit" list is `diffSnapshots(baseline, current)`; notifications fire on `diffSnapshots(prevCurrent, newSnapshot)` between polls.
+- **Snapshot shape** (`buildSnapshot` in `lib/ampel.js`): `{ courseTitle, courseUpdatedAt, stockCount, stocks{id->{id,name,section,color,updatedAt}}, sections{id->{id,title,color,updatedAt,hasStocks}} }`. `diffSnapshots` only computes section diffs when the *old* snapshot already has a `sections` field — and `ingestSnapshot` back-fills `baseline.sections` once — together preventing "everything new" false alarms after a version bump.
 
 ## Reading live data during development
 

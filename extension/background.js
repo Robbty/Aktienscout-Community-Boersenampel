@@ -2,26 +2,34 @@
  * background.js — Service-Worker (MV3).
  *
  * Aufgaben:
- *  - regelmäßiges Polling der Börsenampel via chrome.alarms
+ *  - regelmäßiges Polling der Börsenampel via api.alarms
  *  - Abruf der Skool-Seite mit der eingeloggten Session (credentials: include)
  *  - Diff gegen den zuletzt gesehenen Zustand -> Badge + Benachrichtigung
  *  - bedient Anfragen von Popup und Content-Script
  *
- * Speicher (chrome.storage.local):
+ * Speicher (api.storage.local):
  *  - baseline   : Zustand, den der Nutzer zuletzt "als gesehen" bestätigt hat
  *  - current    : zuletzt abgerufener Zustand
  *  - settings   : { intervalMinutes }
  *  - meta       : { lastPollAt, lastPollOk, lastError, source }
  */
 
-importScripts('lib/ampel.js');
+// Cross-Browser: Firefox stellt `browser` bereit, Chrome `chrome`. Beide liefern
+// in MV3 Promises, sodass der restliche Code mit await unverändert funktioniert.
+const api = globalThis.browser || globalThis.chrome;
+
+// Chrome (Service-Worker) lädt die geteilte Logik via importScripts. In Firefox
+// kommt sie über das background.scripts-Array; dort gibt es kein importScripts.
+if (typeof importScripts === 'function') {
+  importScripts('lib/ampel.js');
+}
 
 const DEFAULTS = { intervalMinutes: 60 };
 const ALARM = 'poll';
 
 // --- Storage-Helfer ---------------------------------------------------------
 async function getState() {
-  const s = await chrome.storage.local.get(['baseline', 'current', 'settings', 'meta']);
+  const s = await api.storage.local.get(['baseline', 'current', 'settings', 'meta']);
   return {
     baseline: s.baseline || null,
     current: s.current || null,
@@ -32,15 +40,15 @@ async function getState() {
 
 async function setMeta(patch) {
   const { meta } = await getState();
-  await chrome.storage.local.set({ meta: Object.assign({}, meta, patch) });
+  await api.storage.local.set({ meta: Object.assign({}, meta, patch) });
 }
 
 // --- Badge ------------------------------------------------------------------
 async function refreshBadge() {
   const { baseline, current } = await getState();
   const n = diffCount(diffSnapshots(baseline, current));
-  await chrome.action.setBadgeBackgroundColor({ color: '#d93025' });
-  await chrome.action.setBadgeText({ text: n > 0 ? String(n) : '' });
+  await api.action.setBadgeBackgroundColor({ color: '#d93025' });
+  await api.action.setBadgeText({ text: n > 0 ? String(n) : '' });
 }
 
 // --- Kernablauf: neuen Snapshot übernehmen ----------------------------------
@@ -62,7 +70,7 @@ async function ingestSnapshot(snapshot, source) {
     // Aktien-Vergleichspunkt zu verändern -> verhindert "alle Menüpunkte neu".
     toSet.baseline = Object.assign({}, baseline, { sections: snapshot.sections });
   }
-  await chrome.storage.local.set(toSet);
+  await api.storage.local.set(toSet);
   await setMeta({ lastPollAt: Date.now(), lastPollOk: true, lastError: null, source });
   await refreshBadge();
 
@@ -115,7 +123,7 @@ async function notifyChanges(delta) {
     .concat(delta.edited.map((s) => '✎ ' + s.name))
     .slice(0, 3);
 
-  await chrome.notifications.create('ampel-' + Date.now(), {
+  await api.notifications.create('ampel-' + Date.now(), {
     type: 'basic',
     iconUrl: 'icons/icon128.png',
     title: 'Börsenampel: ' + parts.join(', '),
@@ -127,7 +135,7 @@ async function notifyChanges(delta) {
 // --- "Als gesehen" markieren ------------------------------------------------
 async function acknowledge() {
   const { current } = await getState();
-  if (current) await chrome.storage.local.set({ baseline: current });
+  if (current) await api.storage.local.set({ baseline: current });
   await refreshBadge();
 }
 
@@ -135,37 +143,37 @@ async function acknowledge() {
 async function ensureAlarm() {
   const { settings } = await getState();
   const period = Math.max(1, Number(settings.intervalMinutes) || DEFAULTS.intervalMinutes);
-  await chrome.alarms.create(ALARM, { periodInMinutes: period });
+  await api.alarms.create(ALARM, { periodInMinutes: period });
 }
 
 async function setInterval(minutes) {
   const { settings } = await getState();
   const intervalMinutes = Math.max(1, Number(minutes) || DEFAULTS.intervalMinutes);
-  await chrome.storage.local.set({ settings: Object.assign({}, settings, { intervalMinutes }) });
+  await api.storage.local.set({ settings: Object.assign({}, settings, { intervalMinutes }) });
   await ensureAlarm();
 }
 
-chrome.runtime.onInstalled.addListener(async () => {
+api.runtime.onInstalled.addListener(async () => {
   await ensureAlarm();
   await pollViaFetch();
 });
 
-chrome.runtime.onStartup.addListener(async () => {
+api.runtime.onStartup.addListener(async () => {
   await ensureAlarm();
   await pollViaFetch();
 });
 
-chrome.alarms.onAlarm.addListener((alarm) => {
+api.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === ALARM) pollViaFetch();
 });
 
 // Klick auf eine Benachrichtigung öffnet die Ampel-Seite.
-chrome.notifications.onClicked.addListener((id) => {
-  if (id.startsWith('ampel-')) chrome.tabs.create({ url: AMPEL_CONFIG.classroomUrl });
+api.notifications.onClicked.addListener((id) => {
+  if (id.startsWith('ampel-')) api.tabs.create({ url: AMPEL_CONFIG.classroomUrl });
 });
 
 // --- Nachrichten von Popup / Content-Script ---------------------------------
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   (async () => {
     switch (msg && msg.type) {
       case 'getState': {

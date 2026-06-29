@@ -9,8 +9,11 @@ let state = null;       // { baseline, current, settings, meta, diff }
 let changedIds = new Set();
 let collapsed = { green: true, yellow: true, red: true, other: true };
 
+const api = globalThis.browser || globalThis.chrome;
+
 function send(msg) {
-  return new Promise((resolve) => chrome.runtime.sendMessage(msg, resolve));
+  // Promise-Form funktioniert in Chrome (MV3) und Firefox gleichermaßen.
+  return api.runtime.sendMessage(msg);
 }
 
 function fmtTime(ts) {
@@ -167,7 +170,7 @@ function renderGroups() {
 }
 
 function openStock(id) {
-  chrome.tabs.create({ url: stockUrl(id) });
+  api.tabs.create({ url: stockUrl(id) });
 }
 
 function renderAll() {
