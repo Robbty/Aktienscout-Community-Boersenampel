@@ -182,17 +182,45 @@ function openStock(id) {
   api.tabs.create({ url: stockUrl(id) });
 }
 
+// Ampel-Daten nur zeigen, wenn der letzte Abruf erfolgreich war (= eingeloggt).
+// So sind nach dem Ausloggen keine zwischengespeicherten Daten mehr sichtbar.
+function isLoggedIn() {
+  return !!(state && state.current && state.meta && state.meta.lastPollOk === true);
+}
+
+function setDataVisible(ok) {
+  document.getElementById('changes').hidden = !ok;
+  document.querySelector('.searchbar').hidden = !ok;
+  document.getElementById('groups').hidden = !ok;
+}
+
 function renderAll() {
   renderStatus();
-  renderChanges();
-  renderGroups();
+  const ok = isLoggedIn();
+  setDataVisible(ok);
+  if (ok) {
+    renderChanges();
+    renderGroups();
+  }
   const iv = document.getElementById('interval');
-  if (document.activeElement !== iv) iv.value = state.settings.intervalMinutes;
+  if (state.settings && document.activeElement !== iv) iv.value = state.settings.intervalMinutes;
+}
+
+function showChecking() {
+  const el = document.getElementById('status');
+  el.classList.remove('error');
+  el.textContent = 'Prüfe Login…';
+  setDataVisible(false); // nichts Sensibles zeigen, bis der Login bestätigt ist
 }
 
 // --- Init + Events ----------------------------------------------------------
 async function init() {
   state = await send({ type: 'getState' });
+  // Bei jedem Öffnen den Login-Status frisch prüfen und dabei keine alten Daten
+  // anzeigen, bevor der Abruf bestätigt, dass wir noch eingeloggt sind.
+  showChecking();
+  const r = await send({ type: 'pollNow' });
+  if (r) state = r;
   renderAll();
 }
 

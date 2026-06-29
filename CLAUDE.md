@@ -10,7 +10,7 @@ Phase 1 shipped: a cross-browser MV3 web extension lives in `extension/`. Phases
 
 - `extension/` — the single source of truth, written cross-browser. Loadable directly in Chrome as an unpacked extension (its `manifest.json` is the Chrome variant). `manifest.firefox.json` sits alongside it and is ignored by Chrome.
 - `node build.mjs` — assembles `dist/chrome/` and `dist/firefox/` from `extension/`, swapping in the right manifest. `dist/` is git-ignored. Load `dist/firefox/` via Firefox `about:debugging` → "Load Temporary Add-on" (pick its `manifest.json`).
-- No package.json / no deps. Logic is unit-checked ad hoc with `node` (load `extension/lib/ampel.js` into a `vm` context and exercise `buildSnapshot` / `diffSnapshots`). Syntax-check with `node --check <file>`.
+- No package.json / no deps. `node test/lifecycle.test.mjs` exercises the full change-detection lifecycle (login → acknowledge → logout → changes → re-login) against `extension/lib/ampel.js`. Syntax-check with `node --check <file>`. Note: load `ampel.js` via `runInThisContext` (not a fresh `vm` context) so its arrays share the test realm's prototypes, otherwise `deepStrictEqual` fails cross-realm.
 
 ### Cross-browser specifics (don't regress these)
 
@@ -62,6 +62,7 @@ Phases:
 
 - **Two ways data arrives, by design.** (a) `content.js` runs on the ampel page and reads `__NEXT_DATA__` from the live DOM on every visit — guaranteed-authenticated, the robust path. (b) `background.js` does a cookie-authenticated `fetch()` on an alarm for true background polling without an open tab. If Chrome withholds session cookies from the background fetch (SameSite), path (a) still keeps data fresh. Both funnel through `ingestSnapshot()`.
 - **State in `storage.local`:** `current` (latest snapshot), `baseline` (state the user last acknowledged via "Als gesehen markieren"), `settings.intervalMinutes`, `meta`. The popup's "since last visit" list is `diffSnapshots(baseline, current)`; notifications fire on `diffSnapshots(prevCurrent, newSnapshot)` between polls.
+- **Logged-out privacy:** a failed poll never overwrites `current`/`baseline` (so the diff survives the logout gap), it only sets `meta.lastPollOk = false`. The popup shows ampel data *only* when `meta.lastPollOk === true`, and re-polls on every open (showing "Prüfe Login…" first) so cached paid data is never visible while logged out — yet all changes that happened while away appear on the next successful poll.
 - **Snapshot shape** (`buildSnapshot` in `lib/ampel.js`): `{ courseTitle, courseUpdatedAt, stockCount, stocks{id->{id,name,section,color,updatedAt}}, sections{id->{id,title,color,updatedAt,hasStocks}} }`. `diffSnapshots` only computes section diffs when the *old* snapshot already has a `sections` field — and `ingestSnapshot` back-fills `baseline.sections` once — together preventing "everything new" false alarms after a version bump.
 
 ## Reading live data during development
