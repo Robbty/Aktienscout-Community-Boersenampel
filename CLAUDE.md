@@ -55,6 +55,7 @@ Chosen because the add-on runs inside the user's already-logged-in browser sessi
 
 Phases:
 1. **Done.** Read ampel + diff since last visit (added/moved/edited/removed stocks via `updatedAt`), collapsible ampeln with search box, configurable poll interval, badge + notifications. Also tracks **section ("Menüpunkt") changes** — added/removed sections and edited info-pages ("Achtung zuerst lesen", "Folgt in Kürze"); ampel sections are skipped there to avoid double-reporting their stock churn.
+1b. **"Aktivität letzte X Tage"** popup section: lists stocks whose `updatedAt` falls within a user-set window (`settings.activityDays`), newest first. Derived purely from the current snapshot → retroactive, no history store. Caveat surfaced by real data: the author bulk-edits ~40 stocks at once, so `updatedAt` means "touched", not "status-changed" — a precise typed change-log (recording only ampel moves/adds/removes with their date, forward-only) would be the targeted complement and is not built yet.
 2. Per-stock **detail view** (Tier 2 content fetch — the rich body that is not in `__NEXT_DATA__`).
 3. **Portfolio tracker** (buy/where/when/entry price/qty/current price/PnL/sold/profit/holding-days + table). Decoupled from Skool; needs an external stock-price API (free APIs are rate-limited — open question, deferred until Phase 3).
 

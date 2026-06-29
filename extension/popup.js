@@ -22,6 +22,13 @@ function fmtTime(ts) {
   return d.toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
+function relDays(ts) {
+  const d = Math.floor((Date.now() - ts) / 86400000);
+  if (d <= 0) return 'heute';
+  if (d === 1) return 'gestern';
+  return 'vor ' + d + ' Tagen';
+}
+
 function colorOf(stock) { return stock.color || 'other'; }
 
 // --- Render: Statuszeile ----------------------------------------------------
@@ -178,6 +185,43 @@ function renderGroups() {
   }
 }
 
+// --- Render: Aktivität (letzte X Tage) aus updatedAt ------------------------
+function renderActivity() {
+  const list = document.getElementById('activityList');
+  const days = (state.settings && state.settings.activityDays) || 7;
+  const cutoff = Date.now() - days * 86400000;
+  const stocks = (state.current && state.current.stocks) || {};
+
+  const rows = Object.keys(stocks)
+    .map((id) => ({ s: stocks[id], ts: Date.parse(stocks[id].updatedAt) }))
+    .filter((r) => !isNaN(r.ts) && r.ts >= cutoff)
+    .sort((a, b) => b.ts - a.ts);
+
+  list.innerHTML = '';
+  if (rows.length === 0) {
+    const li = document.createElement('li');
+    li.className = 'empty';
+    li.textContent = 'Keine Aktie in den letzten ' + days + ' Tagen geändert.';
+    list.appendChild(li);
+    return;
+  }
+  for (const { s, ts } of rows) {
+    const li = document.createElement('li');
+    li.title = 'In Skool öffnen';
+    const dot = document.createElement('span');
+    dot.className = 'dot ' + colorOf(s);
+    const name = document.createElement('span');
+    name.className = 'stock-name';
+    name.textContent = s.name;
+    const when = document.createElement('span');
+    when.className = 'when';
+    when.textContent = relDays(ts) + ' · ' + new Date(ts).toLocaleDateString('de-DE');
+    li.append(dot, name, when);
+    li.addEventListener('click', () => openStock(s.id));
+    list.appendChild(li);
+  }
+}
+
 function openStock(id) {
   api.tabs.create({ url: stockUrl(id) });
 }
@@ -190,6 +234,7 @@ function isLoggedIn() {
 
 function setDataVisible(ok) {
   document.getElementById('changes').hidden = !ok;
+  document.getElementById('activity').hidden = !ok;
   document.querySelector('.searchbar').hidden = !ok;
   document.getElementById('groups').hidden = !ok;
 }
@@ -200,10 +245,13 @@ function renderAll() {
   setDataVisible(ok);
   if (ok) {
     renderChanges();
+    renderActivity();
     renderGroups();
   }
   const iv = document.getElementById('interval');
   if (state.settings && document.activeElement !== iv) iv.value = state.settings.intervalMinutes;
+  const days = document.getElementById('activityDays');
+  if (state.settings && document.activeElement !== days) days.value = state.settings.activityDays || 7;
   const blink = document.getElementById('blink');
   if (state.settings) blink.checked = state.settings.blinkEnabled !== false;
 }
@@ -248,6 +296,13 @@ document.getElementById('blink').addEventListener('change', async (e) => {
   const enabled = e.currentTarget.checked;
   await send({ type: 'setBlink', enabled });
   if (state.settings) state.settings.blinkEnabled = enabled;
+});
+
+document.getElementById('activityDays').addEventListener('input', async (e) => {
+  const days = Math.max(1, Number(e.currentTarget.value) || 7);
+  if (state.settings) state.settings.activityDays = days;
+  renderActivity();                      // sofort aktualisieren
+  await send({ type: 'setActivityDays', days }); // und persistieren
 });
 
 document.getElementById('saveInterval').addEventListener('click', async () => {

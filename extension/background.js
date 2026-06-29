@@ -24,7 +24,7 @@ if (typeof importScripts === 'function') {
   importScripts('lib/ampel.js');
 }
 
-const DEFAULTS = { intervalMinutes: 60, blinkEnabled: true };
+const DEFAULTS = { intervalMinutes: 60, blinkEnabled: true, activityDays: 7 };
 const ALARM = 'poll';
 
 // Icon-Frames fürs Blinken (normal = Lichter an, off = erloschen).
@@ -203,6 +203,12 @@ async function setBlinkEnabled(enabled) {
   if (!enabled) await stopBlink();
 }
 
+async function setActivityDays(days) {
+  const { settings } = await getState();
+  const activityDays = Math.max(1, Number(days) || DEFAULTS.activityDays);
+  await api.storage.local.set({ settings: Object.assign({}, settings, { activityDays }) });
+}
+
 api.runtime.onInstalled.addListener(async () => {
   await ensureAlarm();
   await setIcon(ICON_ON);
@@ -260,6 +266,11 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
       case 'setBlink': {
         await setBlinkEnabled(msg.enabled);
+        sendResponse({ ok: true });
+        break;
+      }
+      case 'setActivityDays': {
+        await setActivityDays(msg.days);
         sendResponse({ ok: true });
         break;
       }
