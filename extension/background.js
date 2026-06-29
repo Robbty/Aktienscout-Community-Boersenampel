@@ -86,7 +86,9 @@ async function appendHistory(delta) {
   for (const s of delta.sectionRemoved) push({ type: 'sectionRemoved', id: s.id, name: s.title, at: detectedAt });
   if (!events.length) return;
   const { history } = await getState();
-  await api.storage.local.set({ history: history.concat(events).slice(-HISTORY_MAX) });
+  // Bei Überlauf die ältesten Änderungen (nach Datum) verwerfen, nicht nur die
+  // zuerst eingefügten.
+  await api.storage.local.set({ history: pruneHistory(history.concat(events), HISTORY_MAX) });
 }
 
 async function setMeta(patch) {

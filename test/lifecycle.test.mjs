@@ -17,7 +17,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 // Im selben Realm ausführen (ampel.js exportiert auf globalThis) — sonst hätten
 // die im vm-Kontext erzeugten Arrays fremde Prototypen und deepStrictEqual scheitert.
 runInThisContext(readFileSync(join(here, '..', 'extension', 'lib', 'ampel.js'), 'utf8'));
-const { buildSnapshot, diffSnapshots, diffCount } = globalThis;
+const { buildSnapshot, diffSnapshots, diffCount, pruneHistory } = globalThis;
 
 // Minimaler __NEXT_DATA__-Nachbau in Skool-Form.
 function nd(sections) {
@@ -130,5 +130,19 @@ assert.equal(store.history.find((e) => e.name === 'BMW').at, 't1', 'Wechsel-Datu
 // Erneuter identischer Abruf B -> keine neuen Logbuch-Einträge (keine Doppelung).
 ingestSuccess(store, B, 'fetch');
 assert.equal(store.history.length, 5, 'identischer Abruf fügt nichts hinzu');
+
+// --- Logbuch-Begrenzung: älteste ÄNDERUNG (nach Datum) zuerst löschen --------
+// Bewusst NICHT nach Einfügereihenfolge: der zuletzt eingefügte Eintrag hat hier
+// das älteste Datum und muss trotzdem als erster wegfallen.
+const raw = [
+  { name: 'neu',    at: '2026-06-10T00:00:00Z' },
+  { name: 'mittel', at: '2026-06-05T00:00:00Z' },
+  { name: 'alt',    at: '2026-06-01T00:00:00Z' }, // ältestes Datum, zuletzt eingefügt
+];
+const kept = pruneHistory(raw, 2);
+assert.equal(kept.length, 2, 'auf max=2 begrenzt');
+assert.equal(kept.some((e) => e.name === 'alt'), false, 'ältestes Datum ("alt") wurde verworfen');
+assert.deepEqual(kept.map((e) => e.name).sort(), ['mittel', 'neu'], 'die zwei jüngsten bleiben');
+assert.equal(pruneHistory(raw, 5), raw, 'unter dem Limit unverändert');
 
 console.log('lifecycle.test.mjs: alle Assertions bestanden ✓');

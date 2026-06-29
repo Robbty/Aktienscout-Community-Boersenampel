@@ -146,6 +146,16 @@ function diffSnapshots(oldSnap, newSnap) {
   return result;
 }
 
+// Logbuch auf max Einträge begrenzen und dabei die ältesten ÄNDERUNGEN
+// (nach Datum `at`, nicht nach Einfügereihenfolge) zuerst verwerfen.
+function pruneHistory(history, max) {
+  if (!Array.isArray(history) || history.length <= max) return history;
+  return history
+    .slice()
+    .sort((a, b) => (Date.parse(a.at) || 0) - (Date.parse(b.at) || 0)) // älteste zuerst
+    .slice(history.length - max); // die ältesten nach Änderungsdatum fallen weg
+}
+
 function diffCount(diff) {
   if (!diff) return 0;
   return (
@@ -164,4 +174,5 @@ if (typeof globalThis !== 'undefined') {
   globalThis.buildSnapshotFromDocument = buildSnapshotFromDocument;
   globalThis.diffSnapshots = diffSnapshots;
   globalThis.diffCount = diffCount;
+  globalThis.pruneHistory = pruneHistory;
 }
