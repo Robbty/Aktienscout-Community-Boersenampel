@@ -42,7 +42,9 @@ Das reicht schon. Du musst nicht mal die Ampel-Seite offen haben.
 
 ## Einbauen in Chrome (oder Edge, Brave, Opera)
 
-1. Lade das Projekt herunter: oben auf den grünen Knopf **`Code`** klicken → **`Download ZIP`**.
+1. **Lade das Projekt als ZIP herunter** – am einfachsten mit diesem direkten Link:
+   👉 **[Projekt als ZIP herunterladen](https://github.com/Robbty/Aktienscout-Community-Boersenampel/archive/refs/heads/main.zip)**
+   *(Alternativ auf der [Projektseite](https://github.com/Robbty/Aktienscout-Community-Boersenampel) oben rechts über der Dateiliste auf den grünen Knopf **„< > Code"** klicken → ganz unten **„Download ZIP"**.)*
 2. **ZIP entpacken** (Rechtsklick → „Entpacken"). Merke dir den Ort.
 3. Tippe oben in die Adresszeile: **`chrome://extensions`** und drücke Enter.
 4. Schalte oben rechts den **Entwicklermodus** ein. 🛠️

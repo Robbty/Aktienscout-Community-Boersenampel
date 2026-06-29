@@ -27,7 +27,7 @@ Ohne Mitgliedschaft/Anmeldung zeigt das Add-on bewusst **keine** Daten.
 
 ## Installation
 
-Lade das Projekt herunter (grüner **Code**-Button auf GitHub → **Download ZIP** → entpacken) oder klone es:
+Lade das Projekt herunter – [**direkt als ZIP**](https://github.com/Robbty/Aktienscout-Community-Boersenampel/archive/refs/heads/main.zip) (oder auf der Projektseite oben rechts über der Dateiliste grüner Knopf **„< > Code" → Download ZIP**), dann entpacken. Oder klone es:
 
 ```bash
 git clone https://github.com/Robbty/Aktienscout-Community-Boersenampel.git
