@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <header>
+    <div class="title">
+      <span class="lights" aria-hidden="true"><i class="g"></i><i class="y"></i><i class="r"></i></span>
+      <span id="courseTitle">Börsenampel</span>
+    </div>
+    <div id="status" class="status"></div>
+  </header>
+
+  <section id="changes" class="changes">
+    <div class="changes-head">
+      <h2>Seit deinem letzten Besuch</h2>
+      <button id="ackBtn" class="link-btn" hidden>Als gesehen markieren</button>
+    </div>
+    <ul id="changesList" class="changes-list"></ul>
+  </section>
+
+  <div class="searchbar">
+    <input id="search" type="search" placeholder="Aktie suchen…" autocomplete="off" />
+  </div>
+
+  <main id="groups" class="groups"></main>
+
+  <footer>
+    <div class="settings">
+      <label for="interval">Prüfen alle</label>
+      <input id="interval" type="number" min="1" step="1" /> Min.
+      <button id="saveInterval" class="link-btn">Speichern</button>
+    </div>
+    <button id="pollNow" class="primary-btn">Jetzt prüfen</button>
+  </footer>
+
+  <script src="lib/ampel.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

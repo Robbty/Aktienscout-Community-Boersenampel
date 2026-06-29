@@ -1,0 +1,20 @@
+# Playwright-MCP Scratch-Ausgaben (Snapshots, Konsolen-Logs)
+.playwright-mcp/
+
+# Lokale Claude-Code-Einstellungen (maschinenspezifisch)
+.claude/settings.local.json
+
+# OS / Editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Node (für spätere Tooling-/Build-Schritte)
+node_modules/
+npm-debug.log*
+
+# Verpackte Extension
+*.zip
+*.crx
+*.pem

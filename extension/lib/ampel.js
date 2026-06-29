@@ -1,0 +1,131 @@
+/*
+ * ampel.js — geteilte Parsing- und Diff-Logik.
+ *
+ * Wird in drei Kontexten geladen, deshalb bewusst KEIN ES-Modul:
+ *   - Service-Worker via importScripts('lib/ampel.js')
+ *   - Content-Script (als erstes Script im content_scripts-Array)
+ *   - Popup via <script src="lib/ampel.js">
+ * Alle Funktionen liegen global (self / window).
+ */
+
+// --- Konfiguration der überwachten Skool-Quelle -----------------------------
+const AMPEL_CONFIG = {
+  community: 'cybermoney-1123',
+  course: '8d4e7683',
+};
+
+AMPEL_CONFIG.classroomUrl =
+  'https://www.skool.com/' + AMPEL_CONFIG.community + '/classroom/' + AMPEL_CONFIG.course;
+
+// URL für eine einzelne Aktie (zum Öffnen im Skool-Classroom)
+function stockUrl(id) {
+  return AMPEL_CONFIG.classroomUrl + '?md=' + id;
+}
+
+// --- Farb-Normalisierung ----------------------------------------------------
+// Skool kennt keine Farbe als Feld; sie ergibt sich aus dem Sektion-Titel.
+function ampelColor(sectionTitle) {
+  const t = (sectionTitle || '').toLowerCase();
+  if (t.includes('grün') || t.includes('gruen')) return 'green';
+  if (t.includes('gelb')) return 'yellow';
+  if (t.includes('rot')) return 'red';
+  return 'other';
+}
+
+// --- __NEXT_DATA__ aus rohem HTML ziehen (Service-Worker hat kein DOMParser) -
+function extractNextDataFromHtml(html) {
+  const m = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+  if (!m) return null;
+  try {
+    return JSON.parse(m[1]);
+  } catch (e) {
+    return null;
+  }
+}
+
+// --- Snapshot aus dem __NEXT_DATA__-JSON bauen ------------------------------
+// Liefert ein flaches, vergleichbares Abbild des aktuellen Ampel-Zustands.
+function buildSnapshot(nextData) {
+  const pp = nextData && nextData.props && nextData.props.pageProps;
+  const root = pp && pp.course;
+  if (!root || !root.course) return null;
+
+  const stocks = {};
+  let count = 0;
+  for (const section of root.children || []) {
+    const sectionTitle = section.course.metadata.title;
+    for (const st of section.children || []) {
+      const id = st.course.id;
+      stocks[id] = {
+        id,
+        name: st.course.metadata.title,
+        section: sectionTitle,
+        color: ampelColor(sectionTitle),
+        updatedAt: st.course.updatedAt,
+      };
+      count++;
+    }
+  }
+
+  return {
+    courseTitle: root.course.metadata.title,
+    courseUpdatedAt: root.course.updatedAt,
+    stockCount: count,
+    stocks, // map id -> stock
+  };
+}
+
+// Snapshot direkt aus einem geladenen Dokument (Content-Script-Pfad).
+function buildSnapshotFromDocument(doc) {
+  const el = doc.getElementById('__NEXT_DATA__');
+  if (!el) return null;
+  let json;
+  try {
+    json = JSON.parse(el.textContent);
+  } catch (e) {
+    return null;
+  }
+  return buildSnapshot(json);
+}
+
+// --- Diff zwischen zwei Snapshots -------------------------------------------
+// old/new sind Snapshots (oder null). Liefert die vier Änderungsarten.
+function diffSnapshots(oldSnap, newSnap) {
+  const result = { added: [], removed: [], moved: [], edited: [] };
+  if (!newSnap) return result;
+  const oldStocks = (oldSnap && oldSnap.stocks) || {};
+  const newStocks = newSnap.stocks || {};
+
+  for (const id of Object.keys(newStocks)) {
+    const n = newStocks[id];
+    const o = oldStocks[id];
+    if (!o) {
+      result.added.push({ ...n });
+    } else if (o.color !== n.color) {
+      result.moved.push({ ...n, from: o.color, fromSection: o.section, to: n.color });
+    } else if (o.updatedAt !== n.updatedAt) {
+      result.edited.push({ ...n, prevUpdatedAt: o.updatedAt });
+    }
+  }
+  for (const id of Object.keys(oldStocks)) {
+    if (!newStocks[id]) result.removed.push({ ...oldStocks[id] });
+  }
+  return result;
+}
+
+function diffCount(diff) {
+  if (!diff) return 0;
+  return diff.added.length + diff.removed.length + diff.moved.length + diff.edited.length;
+}
+
+// In Service-Worker, Content-Script und Popup gleichermaßen erreichbar machen.
+if (typeof globalThis !== 'undefined') {
+  globalThis.AMPEL_CONFIG = AMPEL_CONFIG;
+  globalThis.stockUrl = stockUrl;
+  globalThis.ampelColor = ampelColor;
+  globalThis.extractNextDataFromHtml = extractNextDataFromHtml;
+  globalThis.buildSnapshot = buildSnapshot;
+  globalThis.buildSnapshotFromDocument = buildSnapshotFromDocument;
+  globalThis.diffSnapshots = diffSnapshots;
+  globalThis.diffCount = diffCount;
+}

@@ -1,0 +1,317 @@
+{
+  "capturedFrom": "https://www.skool.com/cybermoney-1123/classroom/8d4e7683?md=520eb76e8c2b471aa8214d14373b106a",
+  "courseTitle": "Die Aktien-Ampel (lifetime)*",
+  "courseUpdatedAt": "2026-06-27T11:27:49.277975Z",
+  "sections": [
+    {
+      "title": "Achtung zuerst lesen:",
+      "id": "e044eeb49f9f42aca530a51657d8a718",
+      "updatedAt": "2026-02-22T13:06:26.881727Z",
+      "stocks": []
+    },
+    {
+      "title": "Folgt in Kürze",
+      "id": "c4dd7dcf1d9044e1a99949099ddb01ab",
+      "updatedAt": "2026-02-22T19:09:55.775712Z",
+      "stocks": []
+    },
+    {
+      "title": "grüne Ampel",
+      "id": "7c65f350030942ea89da415f8bf07bc6",
+      "updatedAt": "2026-02-23T19:04:13.498345Z",
+      "stocks": [
+        {
+          "name": "AAK AB",
+          "id": "63c550bf59be46ebb7ec3e8b92a04164",
+          "updatedAt": "2026-06-21T10:20:49.276901Z"
+        },
+        {
+          "name": "A2A S.p.A",
+          "id": "a454d2a2609d4c36aa2190ae61f30c11",
+          "updatedAt": "2026-06-28T06:18:00.831459Z"
+        },
+        {
+          "name": "Accor SA",
+          "id": "21dbf976dc3c445daa90c394e365f705",
+          "updatedAt": "2026-06-28T15:59:42.257961Z"
+        },
+        {
+          "name": "ACS Actividades de Construccion y Servicios SA",
+          "id": "3e7b41a605e3414b86507efd8fa47091",
+          "updatedAt": "2026-06-07T16:29:42.433287Z"
+        },
+        {
+          "name": "Adecco Group AG",
+          "id": "481a5c16b7614a01b32a040252b98c40",
+          "updatedAt": "2026-06-21T07:18:49.484092Z"
+        },
+        {
+          "name": "BMW AG",
+          "id": "153fecae7a5149118b5545fc5a5a674a",
+          "updatedAt": "2026-06-28T17:12:54.078658Z"
+        },
+        {
+          "name": "DEUTSCHE BOERSE AG",
+          "id": "aa467a6550b24c01bd0a2be9015c7f6f",
+          "updatedAt": "2026-06-28T17:20:22.596392Z"
+        },
+        {
+          "name": "Deutsche Telekom AG",
+          "id": "d1ef2b8fcc4e4669bf16b5f65e39e066",
+          "updatedAt": "2026-06-28T11:54:28.503482Z"
+        },
+        {
+          "name": "E.ON SE",
+          "id": "41c5a5e890a24dd79fea42ddaed35c72",
+          "updatedAt": "2026-06-28T17:27:38.663087Z"
+        },
+        {
+          "name": "Fresenius SE & Co KGaA",
+          "id": "214736c43c264843beeab496d5c406e2",
+          "updatedAt": "2026-06-28T11:56:35.502986Z"
+        },
+        {
+          "name": "Heidelberg Materials AG",
+          "id": "ddaf5e14b88d4fdeb92a7705a8c51f6e",
+          "updatedAt": "2026-06-28T17:30:18.784939Z"
+        },
+        {
+          "name": "Mercedes-Benz Group AG",
+          "id": "b1ae091f5fad4e7ca1356d27408c4bc6",
+          "updatedAt": "2026-06-28T14:38:39.363723Z"
+        },
+        {
+          "name": "Muenchner Rückversicherung",
+          "id": "66807731fd0f4b0fafdf9ed9a877ce76",
+          "updatedAt": "2026-06-28T15:36:26.064567Z"
+        },
+        {
+          "name": "NIBE Industrier AB",
+          "id": "f89377fc42f1483e8ac119b9da67dff0",
+          "updatedAt": "2026-06-28T17:32:46.918128Z"
+        },
+        {
+          "name": "Qiagen NV",
+          "id": "7776b8eb2b3b43548c8e7cf0c2fcc1e0",
+          "updatedAt": "2026-06-28T15:39:21.155382Z"
+        },
+        {
+          "name": "Rheinmetall AG",
+          "id": "3950d8b57d244be4a47233e0a8d954ff",
+          "updatedAt": "2026-06-28T15:43:26.154321Z"
+        },
+        {
+          "name": "SAP SE",
+          "id": "666e879ec7424eaa8ec5b092ae61c8bc",
+          "updatedAt": "2026-06-28T15:45:35.739724Z"
+        },
+        {
+          "name": "Siemens Energy AG",
+          "id": "7f290a617bb94300a740d04e0b4cd6c8",
+          "updatedAt": "2026-06-28T17:37:05.603283Z"
+        },
+        {
+          "name": "Siemens Healthineers AG",
+          "id": "e380d88e52b24939a045921b9baaca87",
+          "updatedAt": "2026-06-28T15:47:11.230385Z"
+        },
+        {
+          "name": "Vonovia SE",
+          "id": "4c8673e2cf414029b2d5736cfca570f3",
+          "updatedAt": "2026-06-28T15:48:14.988725Z"
+        }
+      ]
+    },
+    {
+      "title": "gelbe Ampel",
+      "id": "2882df33fde64142aae66bdbc09378f1",
+      "updatedAt": "2026-02-23T19:09:58.855536Z",
+      "stocks": [
+        {
+          "name": "Aalberts NV",
+          "id": "31fc9e7a617647c6bceb5cba962f4533",
+          "updatedAt": "2026-06-28T15:52:24.411679Z"
+        },
+        {
+          "name": "ABB AG",
+          "id": "8ac80eff94874cf182eb55608f319a33",
+          "updatedAt": "2026-06-28T15:54:50.873645Z"
+        },
+        {
+          "name": "ABN Amro Bank NV",
+          "id": "4e7df6b3526e4a7d95d8216a08fdefca",
+          "updatedAt": "2026-06-28T15:57:01.158168Z"
+        },
+        {
+          "name": "Ackermans & Van Haaren NV",
+          "id": "9c1ceff994c846a6878dcaba8336784f",
+          "updatedAt": "2026-06-28T16:10:37.318664Z"
+        },
+        {
+          "name": "ADIDAS AG",
+          "id": "ce7cc9b483084886bdac61740aee26f4",
+          "updatedAt": "2026-06-28T16:12:26.714665Z"
+        },
+        {
+          "name": "Admiral Group plc",
+          "id": "0790b861c62542f1935614a01b706506",
+          "updatedAt": "2026-06-28T16:14:35.459692Z"
+        },
+        {
+          "name": "AIRBUS SE",
+          "id": "9b436896205a493682ea6a8556b1c8a1",
+          "updatedAt": "2026-06-28T17:02:56.61176Z"
+        },
+        {
+          "name": "ALLIANZ SE",
+          "id": "c3bb2b726f584ac39200555428361c73",
+          "updatedAt": "2026-06-28T17:04:53.605736Z"
+        },
+        {
+          "name": "Anheuser-Busch Inbev SA",
+          "id": "e3aa6f28c83c4c97850839dd4866f988",
+          "updatedAt": "2026-06-28T17:08:47.400112Z"
+        },
+        {
+          "name": "BEIERSDORF AG",
+          "id": "baa9bdd9c1244abda9b9ff54e15eb02e",
+          "updatedAt": "2026-06-28T17:09:43.221533Z"
+        },
+        {
+          "name": "BRENNTAG SE",
+          "id": "4caa3162399f4307a65060cf37db2fe8",
+          "updatedAt": "2026-06-28T17:15:15.223332Z"
+        },
+        {
+          "name": "COMMERZBANK AG",
+          "id": "8d53fecf0ddc44449705e793e491270f",
+          "updatedAt": "2026-06-28T17:17:11.386286Z"
+        },
+        {
+          "name": "DAIMLER TRUCK HOLDING AG",
+          "id": "727e677145e94905939b647c9ba41352",
+          "updatedAt": "2026-06-28T11:51:39.305029Z"
+        },
+        {
+          "name": "DEUTSCHE BANK AG",
+          "id": "520eb76e8c2b471aa8214d14373b106a",
+          "updatedAt": "2026-06-28T06:13:54.645739Z"
+        },
+        {
+          "name": "DEUTSCHE POST AG",
+          "id": "214eb8c798ae4e8c9bd0590f4b0a0e17",
+          "updatedAt": "2026-06-28T17:24:35.670224Z"
+        },
+        {
+          "name": "Fresenius Medical Care AG",
+          "id": "7f291bdb9876497faf1e9c626c267d1e",
+          "updatedAt": "2026-06-28T11:58:37.07131Z"
+        },
+        {
+          "name": "GEA Group AG",
+          "id": "499fcad1e4b440fb98a23348fb6a8632",
+          "updatedAt": "2026-06-28T12:01:18.653643Z"
+        },
+        {
+          "name": "Hannover Rück SE",
+          "id": "ca15d6b7e3d84690940e295c5a8b6d6a",
+          "updatedAt": "2026-06-28T14:32:34.865558Z"
+        },
+        {
+          "name": "Henkel",
+          "id": "132d2875b35147fb87d99c865a729d69",
+          "updatedAt": "2026-06-28T14:35:23.472248Z"
+        },
+        {
+          "name": "Merck KGaA",
+          "id": "feefb68e1cb147e68ffee309d3fdad01",
+          "updatedAt": "2026-06-28T15:19:10.447719Z"
+        },
+        {
+          "name": "MTU Aero Engines AG",
+          "id": "e5f82cbb8e6346698a62c265efe6e983",
+          "updatedAt": "2026-06-28T15:34:27.980973Z"
+        },
+        {
+          "name": "OVS SpA",
+          "id": "ab703de77a3c48bf897674c24a1fdfc5",
+          "updatedAt": "2026-06-27T11:57:41.569285Z"
+        },
+        {
+          "name": "Siemens AG",
+          "id": "6ffbd8375ccb40af992ac88a39aa1f86",
+          "updatedAt": "2026-06-28T17:34:28.713289Z"
+        },
+        {
+          "name": "Symrise AG",
+          "id": "8995f04d9b684991a60735e77669376a",
+          "updatedAt": "2026-06-28T17:38:33.395993Z"
+        },
+        {
+          "name": "Zalando SE",
+          "id": "fd761116983f44c6ab34abdb6841d464",
+          "updatedAt": "2026-06-28T15:50:20.86487Z"
+        }
+      ]
+    },
+    {
+      "title": "rote Ampel",
+      "id": "c2777f1942ad4e2784f08a9e29209dd4",
+      "updatedAt": "2026-02-24T15:47:59.784526Z",
+      "stocks": [
+        {
+          "name": "3i Group plc",
+          "id": "7b5dac4329d8491b99c678c386259be5",
+          "updatedAt": "2026-03-17T16:44:34.933095Z"
+        },
+        {
+          "name": "ACCIONA S.A.",
+          "id": "e9a3fa9262744903b90bece1cb0114f7",
+          "updatedAt": "2026-03-17T17:40:54.624748Z"
+        },
+        {
+          "name": "BASF SE",
+          "id": "de1dbf6a15ac491383142b530a042237",
+          "updatedAt": "2026-03-12T19:30:24.371366Z"
+        },
+        {
+          "name": "Bayer",
+          "id": "5f1299bd8e7a47a4b60c551681d60847",
+          "updatedAt": "2026-02-24T15:50:31.431175Z"
+        },
+        {
+          "name": "Continental AG",
+          "id": "56a25a28740944698990f69aa49a30c8",
+          "updatedAt": "2026-02-24T15:51:42.328884Z"
+        },
+        {
+          "name": "Infineon Technologies AG",
+          "id": "9e0637819815442cae325dd6d3301b0d",
+          "updatedAt": "2026-02-26T16:35:13.322944Z"
+        },
+        {
+          "name": "Dr. Ing. hc. F. Porsche AG (Porsche AG)",
+          "id": "496622fa143a40c2943a42ff9eaee702",
+          "updatedAt": "2026-02-27T18:16:48.159531Z"
+        },
+        {
+          "name": "RWE AG",
+          "id": "518cba4a08a64a8f9e79b185ac403cd1",
+          "updatedAt": "2026-03-01T18:26:37.412024Z"
+        },
+        {
+          "name": "Volkswagen",
+          "id": "a46473955ba74075ade4da51c7c2614e",
+          "updatedAt": "2026-03-03T17:04:13.227899Z"
+        }
+      ]
+    }
+  ],
+  "counts": [
+    "Achtung zuerst lesen:: 0",
+    "Folgt in Kürze: 0",
+    "grüne Ampel: 20",
+    "gelbe Ampel: 25",
+    "rote Ampel: 9"
+  ]
+}

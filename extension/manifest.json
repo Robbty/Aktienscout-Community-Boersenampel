@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Börsenampel Watcher",
+  "version": "0.1.0",
+  "description": "Überwacht die Börsenampel der Aktienscout-Community auf Skool und zeigt Änderungen seit deinem letzten Besuch.",
+  "permissions": ["storage", "alarms", "notifications"],
+  "host_permissions": ["https://www.skool.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Börsenampel",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.skool.com/cybermoney-1123/classroom/8d4e7683*"],
+      "js": ["lib/ampel.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
