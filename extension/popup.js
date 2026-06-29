@@ -29,7 +29,12 @@ function renderStatus() {
   const el = document.getElementById('status');
   const meta = state.meta || {};
   if (!state.current) {
-    el.textContent = 'Noch keine Daten – öffne die Skool-Ampel-Seite oder klicke „Jetzt prüfen".';
+    if (meta.lastPollOk === false && meta.lastError) {
+      el.textContent = 'Abruf fehlgeschlagen: ' + meta.lastError +
+        ' – in Firefox bitte die Skool-Ampel-Seite öffnen (eingeloggt).';
+    } else {
+      el.textContent = 'Noch keine Daten – öffne die Skool-Ampel-Seite oder klicke „Jetzt prüfen".';
+    }
     el.classList.toggle('error', meta.lastPollOk === false);
     return;
   }
