@@ -12,6 +12,9 @@ Es schaut für dich in der **Aktienscout-Community** nach: Welche Aktie steht au
 
 Und das Beste: Es sagt dir, **was sich geändert hat**. Ganz von allein.
 
+Dazu gibt es den **Circle-Tab**: Er rechnet die Aktien-Engagements der Community
+„Der Circle zur ersten Million" zusammen. Beide Teile funktionieren unabhängig voneinander.
+
 Kein ständiges Nachschauen mehr. Das Symbol passt auf.
 
 ---
@@ -32,14 +35,16 @@ Kein ständiges Nachschauen mehr. Das Symbol passt auf.
 
 ## Was du brauchst
 
-1. Du bist **Mitglied** der Aktienscout-Community.
-2. Du bist in deinem Browser **bei skool.com angemeldet**.
+1. Du bist in deinem Browser **bei skool.com angemeldet**. Das ist die einzige Grundvoraussetzung.
+2. Für den **Ampel-Tab**: Mitgliedschaft in der Aktienscout-Community.
+3. Für den **Circle-Tab**: Mitgliedschaft in „Der Circle zur ersten Million".
 
-Das reicht schon. Du musst nicht mal die Ampel-Seite offen haben.
+**Eine** der beiden Mitgliedschaften reicht – jeder Tab braucht nur seine eigene. Und du musst keine der Seiten offen haben.
 
 > Nicht angemeldet? Dann zeigt das Symbol nichts an. Das ist Absicht – deine Daten bleiben geschützt.
 >
-> Angemeldet, aber noch kein Mitglied? Dann zeigt dir das Add-on einen Knopf, über den du **VIP werden** kannst.
+> Angemeldet, aber in einer der Communities kein Mitglied? Dann zeigt dir der jeweilige Tab
+> einen Knopf zum Beitreten (bei der Ampel: **VIP werden**) – der andere Tab funktioniert ganz normal.
 
 ---
 
@@ -94,9 +99,25 @@ Das Add-on rechnet alles für dich zusammen:
 
 Darunter siehst du jede Position einzeln. Klick drauf – und sie öffnet sich in Skool.
 
+**Und du verpasst nichts:** Wird eine Aktie **gekauft oder verkauft**, meldet sich das Add-on –
+mit einer Benachrichtigung und einem **goldenen Punkt** auf dem Symbol. 🟡
+
+So liest du das Symbol:
+- **Rote Zahl** (unten rechts) = Änderungen bei der Ampel.
+- **Goldener Punkt** (oben links) = Kauf oder Verkauf im Circle.
+- **Beides** = in beiden Communities ist etwas passiert – die zwei Zeichen
+  sitzen in verschiedenen Ecken und verdecken sich nicht.
+
+Der goldene Punkt verschwindet, sobald du den Circle-Tab öffnest. Alle Käufe und
+Verkäufe stehen dort im Bereich **„Käufe & Verkäufe"** – deine eigene kleine Chronik.
+
 > 👥 Dafür brauchst du eine **eigene Mitgliedschaft** in dieser zweiten Community.
 > Ohne Zugang zeigt dir der Tab einen Knopf, über den du beitreten kannst.
 > Der Ampel-Teil funktioniert auch ohne – ganz normal weiter.
+>
+> Das gilt auch **umgekehrt**: Für den Circle-Tab brauchst du **keine**
+> Aktienscout-Mitgliedschaft. Beide Bereiche sind völlig unabhängig –
+> es reicht die jeweilige Mitgliedschaft für den Teil, den du nutzen willst.
 
 ---
 
@@ -146,7 +167,8 @@ Dafür brauchst du die Mitgliedschaft in der Circle-Community. Ohne sie zeigt de
 Nein. Alles bleibt nur in deinem Browser.
 
 **Kostet das was?**
-Nein. Du brauchst nur deine normale Community-Mitgliedschaft.
+Nein, das Add-on ist kostenlos. Du brauchst nur die Mitgliedschaft der Community,
+deren Teil du nutzen willst – Aktienscout für die Ampel, Circle für den Circle-Tab.
 
 ---
 

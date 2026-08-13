@@ -369,6 +369,58 @@ function computePortfolio(modules) {
   return res;
 }
 
+// --- Kauf-/Verkaufs-Ereignisse zwischen zwei Modul-Ständen -----------------------
+// Meldenswert sind nur die seltenen, wichtigen Ereignisse: neues Engagement
+// (Kauf), Abschluss (Verkauf), Modul entfernt. Reine Kurs-Aktualisierungen im
+// Titel wären Dauerrauschen und werden bewusst ignoriert.
+function circleModuleClosed(m) {
+  const ti = m.titleInfo || parseModuleTitle(m.title || '');
+  return ti.kind === 'closed' || !!(m.trade && m.trade.closed);
+}
+
+function diffCircleModules(oldModules, newModules) {
+  const events = [];
+  const olds = oldModules || {};
+  const news = newModules || {};
+
+  for (const m of Object.values(news)) {
+    const ti = m.titleInfo || parseModuleTitle(m.title || '');
+    if (ti.kind === 'meta') continue;
+    const o = olds[m.id];
+    const closedNow = circleModuleClosed(m);
+    const base = {
+      id: m.id,
+      name: ti.name,
+      at: m.updatedAt || null, // Skool-Zeitstempel; Aufrufer ergänzt detectedAt
+    };
+    if (!o) {
+      // Neues Modul: offen = Kauf; bereits geschlossen = Kauf+Verkauf zwischen
+      // zwei Abrufen -> als Verkauf melden (das Endereignis).
+      if (closedNow) {
+        events.push({ ...base, type: 'sold',
+          ertragEur: m.trade && m.trade.ertragEur != null ? m.trade.ertragEur : null,
+          holdingDays: ti.holdingDays != null ? ti.holdingDays : null });
+      } else {
+        events.push({ ...base, type: 'bought',
+          totalBuyEur: m.trade && m.trade.totalBuyEur != null ? m.trade.totalBuyEur : null,
+          qty: m.trade && m.trade.qty != null ? m.trade.qty : null });
+      }
+    } else if (!circleModuleClosed(o) && closedNow) {
+      events.push({ ...base, type: 'sold',
+        ertragEur: m.trade && m.trade.ertragEur != null ? m.trade.ertragEur : null,
+        holdingDays: ti.holdingDays != null ? ti.holdingDays : null });
+    }
+  }
+
+  for (const o of Object.values(olds)) {
+    const ti = o.titleInfo || parseModuleTitle(o.title || '');
+    if (ti.kind === 'meta') continue;
+    if (!news[o.id]) events.push({ id: o.id, name: ti.name, at: null, type: 'removed' });
+  }
+
+  return events;
+}
+
 // --- Inkrementeller Harvest: welche Bodies fehlen oder sind veraltet? ------------
 // bodyUpdatedAt = updatedAt zum Zeitpunkt des letzten Body-Parsens.
 function selectStaleModules(index, storedModules) {
@@ -394,5 +446,6 @@ if (typeof globalThis !== 'undefined') {
   globalThis.parseTradeBody = parseTradeBody;
   globalThis.parseStatistik = parseStatistik;
   globalThis.computePortfolio = computePortfolio;
+  globalThis.diffCircleModules = diffCircleModules;
   globalThis.selectStaleModules = selectStaleModules;
 }

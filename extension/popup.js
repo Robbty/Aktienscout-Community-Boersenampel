@@ -357,7 +357,7 @@ function showChecking() {
 // Die Auswertung (computePortfolio) läuft komplett hier im Popup über den vom
 // Worker geernteten Modul-Stand — nichts Aggregiertes wird persistiert, damit
 // Parser-Korrekturen rückwirkend alle Zahlen richtigstellen.
-const CIRCLE_BLOCKS = ['circleSummary', 'circleOpen', 'circleClosed', 'circleUnparseable'];
+const CIRCLE_BLOCKS = ['circleSummary', 'circleLog', 'circleOpen', 'circleClosed', 'circleUnparseable'];
 
 function fmtEur(n) {
   return Number(n).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
@@ -487,6 +487,66 @@ function renderCircleClosedTable(rows) {
     : '–';
 }
 
+// Logbuch der erkannten Käufe/Verkäufe (Ereignisse zwischen den Abrufen).
+function renderCircleLog(pending) {
+  const sec = document.getElementById('circleLog');
+  const ul = document.getElementById('circleLogList');
+  const rows = (state.circleHistory || [])
+    .map((e) => ({ e, ts: Date.parse(e.at) || Date.parse(e.detectedAt) || 0 }))
+    .sort((a, b) => b.ts - a.ts)
+    .slice(0, 30); // die jüngsten 30 reichen im Popup
+
+  ul.innerHTML = '';
+  document.getElementById('circleLogCount').textContent = String((state.circleHistory || []).length);
+  sec.hidden = false;
+  // Bei unbestätigten Ereignissen automatisch aufklappen, sonst Zustand lassen.
+  if (pending > 0) sec.classList.remove('collapsed');
+
+  if (!rows.length) {
+    const li = document.createElement('li');
+    li.className = 'empty';
+    li.textContent = 'Noch keine Käufe/Verkäufe beobachtet (wird ab jetzt mitgeschrieben).';
+    ul.appendChild(li);
+    return;
+  }
+  for (const { e, ts } of rows) {
+    const li = document.createElement('li');
+    const tag = document.createElement('span');
+    const name = document.createElement('span');
+    name.className = 'chg-name';
+    name.textContent = e.name;
+    const detail = document.createElement('span');
+    detail.className = 'chg-detail';
+    if (e.type === 'bought') {
+      tag.className = 'tag bought';
+      tag.textContent = 'Gekauft';
+      detail.textContent = e.totalBuyEur != null ? fmtEur(e.totalBuyEur) : '';
+    } else if (e.type === 'sold') {
+      tag.className = 'tag sold';
+      tag.textContent = 'Verkauft';
+      const parts = [];
+      if (e.ertragEur != null) parts.push((e.ertragEur >= 0 ? '+' : '') + fmtEur(e.ertragEur));
+      if (e.holdingDays != null) parts.push(e.holdingDays + ' T.');
+      detail.textContent = parts.join(' · ');
+    } else {
+      tag.className = 'tag removed';
+      tag.textContent = 'Entfernt';
+      detail.textContent = '';
+    }
+    const when = document.createElement('span');
+    when.className = 'when';
+    when.textContent = ts ? relDays(ts) : '';
+    li.append(tag, name, detail, when);
+    if (e.type !== 'removed') {
+      li.title = 'In Skool öffnen';
+      li.addEventListener('click', () => openCircleModule(e.id));
+    } else {
+      li.style.cursor = 'default';
+    }
+    ul.appendChild(li);
+  }
+}
+
 function renderCircleUnparseable(rows) {
   const sec = document.getElementById('circleUnparseable');
   const ul = sec.querySelector('ul');
@@ -561,6 +621,7 @@ function renderCircle() {
 
   const open = pf.positions.filter((p) => p.status === 'open');
   const closed = pf.positions.filter((p) => p.status === 'closed');
+  renderCircleLog(meta.pending || 0);
   renderCircleClosedTable(closed); // steht im Popup vor den laufenden Positionen
   renderCircleOpenTable(open);
   renderCircleUnparseable(pf.unparseable);
@@ -569,6 +630,12 @@ function renderCircle() {
     open.length + ' laufend · ' + closed.length + ' abgeschlossen · zuletzt ' + fmtTime(meta.lastPollAt),
     false,
   );
+
+  // Angesehen -> goldenen Punkt auf dem Icon löschen.
+  if ((meta.pending || 0) > 0) {
+    state.circleMeta = { ...meta, pending: 0 };
+    send({ type: 'circleSeen' });
+  }
 }
 
 // Beim Öffnen des Circle-Tabs den Zugang frisch prüfen (und dabei nichts
@@ -580,6 +647,7 @@ async function refreshCircle() {
   if (r) {
     state.circle = r.circle;
     state.circleMeta = r.circleMeta;
+    state.circleHistory = r.circleHistory || state.circleHistory;
   }
   circleChecked = true;
   renderCircle();
@@ -612,6 +680,9 @@ document.getElementById('circleClosedToggle').addEventListener('click', () => {
 });
 document.getElementById('circleOpenToggle').addEventListener('click', () => {
   document.getElementById('circleOpen').classList.toggle('collapsed');
+});
+document.getElementById('circleLogToggle').addEventListener('click', () => {
+  document.getElementById('circleLog').classList.toggle('collapsed');
 });
 
 // --- Init + Events ----------------------------------------------------------

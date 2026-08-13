@@ -18,7 +18,7 @@ runInThisContext(readFileSync(join(here, '..', 'extension', 'lib', 'circle.js'),
 const {
   CIRCLE_CONFIG, parseGermanNumber, parseModuleTitle, proseMirrorText,
   buildCircleIndex, classifyCircleAccess, parseTradeBody, parseStatistik,
-  computePortfolio, selectStaleModules,
+  computePortfolio, selectStaleModules, diffCircleModules,
 } = globalThis;
 
 // --- Konfiguration ------------------------------------------------------------
@@ -314,6 +314,50 @@ const noPrice = computePortfolio({
 assert.equal(noPrice.positions[0].incomplete, true);
 assert.equal(noPrice.unrealizedTotal, 0, 'ohne Kurs keine unrealisierte Summe');
 assert.equal(noPrice.deployedOpen, 100, 'Kaufsumme zählt trotzdem als gebunden');
+
+// --- Kauf-/Verkaufs-Ereignisse zwischen zwei Ständen ----------------------------------------
+function circMod(id, title, extra) {
+  return Object.assign(
+    { id, title, updatedAt: 'u-' + id, titleInfo: parseModuleTitle(title), trade: null, statistik: null, parseError: null },
+    extra,
+  );
+}
+const before = {
+  leg: circMod('leg', 'LEG Immobilien SE [57,75 € ]', { trade: { closed: false, qty: 8, totalBuyEur: 420 } }),
+  slb: circMod('slb', 'SLB N.V. [48,88 €]', { trade: { closed: false, qty: 12, totalBuyEur: 509 } }),
+  alt: circMod('alt', 'Alte Aktie [10,00 €]', { trade: { closed: false, totalBuyEur: 100 } }),
+  stat: circMod('stat', 'Statistik aktuell'),
+};
+const after = {
+  leg: { ...before.leg, updatedAt: 'u-leg2' }, // nur Kurs im Titel gepflegt -> KEIN Ereignis
+  slb: circMod('slb', 'SLB N.V. [8 Tage]', { trade: { closed: true, qty: 12, totalBuyEur: 509, ertragEur: 51 } }),
+  neu: circMod('neu', 'Neue Aktie [99,00 €]', { trade: { closed: false, qty: 5, totalBuyEur: 495 } }),
+  stat: { ...before.stat, updatedAt: 'u-stat2' }, // Statistik-Modul -> nie ein Ereignis
+  // 'alt' fehlt -> entfernt
+};
+const events = diffCircleModules(before, after);
+const byType = (t) => events.filter((e) => e.type === t);
+assert.equal(events.length, 3, 'genau Kauf + Verkauf + Entfernt, kein Kurs-Rauschen');
+assert.equal(byType('sold').length, 1);
+assert.equal(byType('sold')[0].name, 'SLB N.V.');
+assert.equal(byType('sold')[0].ertragEur, 51, 'Verkauf trägt den Ertrag');
+assert.equal(byType('sold')[0].holdingDays, 8, 'Verkauf trägt die Haltedauer');
+assert.equal(byType('bought').length, 1);
+assert.equal(byType('bought')[0].name, 'Neue Aktie');
+assert.equal(byType('bought')[0].totalBuyEur, 495, 'Kauf trägt die Kaufsumme');
+assert.equal(byType('removed').length, 1);
+assert.equal(byType('removed')[0].name, 'Alte Aktie');
+
+// Neues Modul, das schon verkauft ist (Kauf+Verkauf zwischen zwei Abrufen) -> als Verkauf melden.
+const flash = diffCircleModules(before, {
+  ...before,
+  blitz: circMod('blitz', 'Blitz-Trade [2 Tage]', { trade: { closed: true, totalBuyEur: 300, ertragEur: 30 } }),
+});
+assert.equal(flash.length, 1);
+assert.equal(flash[0].type, 'sold', 'bereits geschlossen aufgetaucht -> Verkauf');
+
+// Identische Stände -> keine Ereignisse.
+assert.deepEqual(diffCircleModules(before, before), [], 'nichts geändert -> nichts gemeldet');
 
 // --- Inkrementelle Harvest-Auswahl --------------------------------------------------------
 const idx = buildCircleIndex({ props: { pageProps: { course: treeShape([

@@ -173,8 +173,11 @@ footer { border-top: 1px solid var(--line); padding: 8px 12px; display: flex; fl
 .pos-table tfoot td { border-top: 1px solid var(--line); border-bottom: none; font-weight: 700; }
 /* Positions-Abschnitte auf-/zuklappbar (gleiches Muster wie "Zuletzt bearbeitet") */
 .circle-block .activity-head h2 { display: flex; align-items: center; gap: 6px; }
-.circle-block.collapsed .pos-table { display: none; }
+.circle-block.collapsed .pos-table,
+.circle-block.collapsed .changes-list { display: none; }
 .circle-block.collapsed .chev { transform: rotate(-90deg); }
+.tag.sold { background: #1a73e8; }
+.tag.bought { background: var(--green); }
 .pct { display: block; font-size: 10px; color: var(--muted); }
 
 /* Circle: kein Zugang -> Beitritts-Hinweis */

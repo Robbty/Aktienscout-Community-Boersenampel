@@ -59,12 +59,53 @@ function startBlink(durationMs = 12000) {
 
 async function stopBlink() {
   if (blinkTimer) { clearInterval(blinkTimer); blinkTimer = null; }
-  await setIcon(ICON_ON); // immer mit sichtbarem Normal-Icon enden
+  await refreshIcon(); // Normal-Icon, ggf. mit goldenem Circle-Punkt
+}
+
+// --- Goldener Circle-Punkt auf dem Icon ---------------------------------------
+// Zwei getrennte Zeichen: das rote Badge (Zahl) gehört der Ampel, der goldene
+// Punkt meldet unbestätigte Circle-Käufe/-Verkäufe. Der Punkt sitzt OBEN LINKS,
+// weil das Badge das Icon unten rechts überlagert — so bleiben beide gleichzeitig
+// sichtbar.
+let goldDotFrames = null; // Cache: einmal gezeichnet, dann wiederverwendet
+
+async function buildGoldDotFrames() {
+  const frames = {};
+  for (const size of [16, 48, 128]) {
+    const res = await fetch(api.runtime.getURL(ICON_ON[size]));
+    const bitmap = await createImageBitmap(await res.blob());
+    const canvas = new OffscreenCanvas(size, size);
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(bitmap, 0, 0, size, size);
+    const r = Math.max(3.5, size * 0.21);
+    const c = r + Math.max(1, size * 0.03); // obere linke Ecke
+    ctx.beginPath();
+    ctx.arc(c, c, r, 0, 2 * Math.PI);
+    ctx.fillStyle = '#d4a017'; // gold
+    ctx.fill();
+    ctx.lineWidth = Math.max(1, size / 24);
+    ctx.strokeStyle = '#ffffff';
+    ctx.stroke();
+    frames[size] = ctx.getImageData(0, 0, size, size);
+  }
+  return frames;
+}
+
+async function refreshIcon() {
+  const { circleMeta } = await getState();
+  if ((circleMeta.pending || 0) > 0) {
+    try {
+      if (!goldDotFrames) goldDotFrames = await buildGoldDotFrames();
+      await api.action.setIcon({ imageData: goldDotFrames });
+      return;
+    } catch (e) { /* z. B. kein OffscreenCanvas -> normales Icon */ }
+  }
+  await setIcon(ICON_ON);
 }
 
 // --- Storage-Helfer ---------------------------------------------------------
 async function getState() {
-  const s = await api.storage.local.get(['baseline', 'current', 'settings', 'meta', 'history', 'circle', 'circleMeta']);
+  const s = await api.storage.local.get(['baseline', 'current', 'settings', 'meta', 'history', 'circle', 'circleMeta', 'circleHistory']);
   return {
     baseline: s.baseline || null,
     current: s.current || null,
@@ -73,6 +114,7 @@ async function getState() {
     history: s.history || [],
     circle: s.circle || null,
     circleMeta: s.circleMeta || {},
+    circleHistory: s.circleHistory || [],
   };
 }
 
@@ -110,7 +152,7 @@ async function refreshBadge() {
   if (n === 0) {
     await stopBlink();           // alles gesehen -> Icon normal, Blinken aus
   } else if (!blinkTimer) {
-    await setIcon(ICON_ON);       // nicht aktiv am Blinken -> festgeklemmtes Frame heilen
+    await refreshIcon();          // nicht aktiv am Blinken -> festgeklemmtes Frame heilen
   }
 }
 
@@ -210,6 +252,7 @@ async function pollViaFetch(allowBlink = false) {
 // updatedAt sich seit dem letzten geparsten Body geändert hat.
 const CIRCLE_HARVEST_CAP = 25;      // max. Modul-Abrufe pro Lauf (Kurs hat ~20)
 const CIRCLE_FETCH_DELAY_MS = 350;  // höflicher Abstand zwischen Modul-Abrufen
+const CIRCLE_HISTORY_MAX = 500;     // Kauf-/Verkaufs-Logbuch begrenzen
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -265,7 +308,39 @@ function applyCircleBody(entry, desc) {
   entry.bodyUpdatedAt = entry.updatedAt;
 }
 
-async function pollCircle() {
+// Benachrichtigung über Circle-Käufe/-Verkäufe (nur die seltenen Ereignisse,
+// keine Kurs-Aktualisierungen).
+async function notifyCircleEvents(events) {
+  const bought = events.filter((e) => e.type === 'bought').length;
+  const sold = events.filter((e) => e.type === 'sold').length;
+  const removed = events.filter((e) => e.type === 'removed').length;
+  const parts = [];
+  if (bought) parts.push(bought + (bought > 1 ? ' Käufe' : ' Kauf'));
+  if (sold) parts.push(sold + (sold > 1 ? ' Verkäufe' : ' Verkauf'));
+  if (removed) parts.push(removed + ' entfernt');
+
+  const fmt = (n) => Number(n).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+  const sample = events.slice(0, 3).map((e) => {
+    if (e.type === 'bought') return '+ ' + e.name + (e.totalBuyEur != null ? ' (' + fmt(e.totalBuyEur) + ')' : '');
+    if (e.type === 'sold') {
+      let s = '✔ ' + e.name + ' verkauft';
+      if (e.ertragEur != null) s += ': ' + (e.ertragEur >= 0 ? '+' : '') + fmt(e.ertragEur);
+      if (e.holdingDays != null) s += ' nach ' + e.holdingDays + ' Tag' + (e.holdingDays === 1 ? '' : 'en');
+      return s;
+    }
+    return '− ' + e.name;
+  });
+
+  await api.notifications.create('circle-' + Date.now(), {
+    type: 'basic',
+    iconUrl: 'icons/icon128.png',
+    title: 'Circle: ' + parts.join(', '),
+    message: sample.join('\n') || 'Es gab Änderungen.',
+    priority: 1,
+  });
+}
+
+async function pollCircle(allowBlink = false) {
   // Test-Schalter (lib/debug.js): fehlenden Zugang bzw. Logout simulieren.
   const sim = (globalThis.DEBUG_SIMULATE && globalThis.DEBUG_SIMULATE.circle) || null;
   if (sim === 'noAccess' || sim === 'loggedOut') {
@@ -335,11 +410,30 @@ async function pollCircle() {
       applyCircleBody(modules[id], desc);
     }
 
+    // Kauf-/Verkaufs-Ereignisse gegenüber dem vorherigen Stand erkennen.
+    // Beim allerersten Harvest gibt es keinen Vergleichspunkt -> nichts melden.
+    const isFirstEver = Object.keys(oldModules).length === 0;
+    const events = isFirstEver ? [] : diffCircleModules(oldModules, modules);
+
     await api.storage.local.set({
       circle: { courseTitle: index.courseTitle, buildId: effectiveBuildId, modules },
     });
+
+    const { circleMeta, circleHistory, settings } = await getState();
+    if (events.length) {
+      const detectedAt = new Date().toISOString();
+      const stamped = events.map((e) => ({ ...e, detectedAt, at: e.at || detectedAt }));
+      await api.storage.local.set({
+        circleHistory: pruneHistory(circleHistory.concat(stamped), CIRCLE_HISTORY_MAX),
+      });
+      await setCircleMeta({ pending: (circleMeta.pending || 0) + events.length });
+      await notifyCircleEvents(events);
+      if (allowBlink && settings.blinkEnabled) startBlink();
+    }
+
     await setCircleMeta({ lastPollAt: Date.now(), lastPollOk: true, access: 'ok', lastError: null });
-    return { ok: true, access: 'ok' };
+    await refreshIcon(); // goldener Punkt an/aus, je nach unbestätigten Ereignissen
+    return { ok: true, access: 'ok', events: events.length };
   } catch (e) {
     const msg = String(e.message || e);
     // Ohne gültige Session antwortet Skool mit 401/403 (live geprüft) ->
@@ -436,13 +530,14 @@ api.runtime.onStartup.addListener(async () => {
 api.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === ALARM) {
     await pollViaFetch(true); // Hintergrund-Abruf darf blinken
-    await pollCircle();       // danach den Circle-Kurs, nacheinander bleibt es höflich
+    await pollCircle(true);   // danach den Circle-Kurs, nacheinander bleibt es höflich
   }
 });
 
-// Klick auf eine Benachrichtigung öffnet die Ampel-Seite.
+// Klick auf eine Benachrichtigung öffnet die passende Kursseite.
 api.notifications.onClicked.addListener((id) => {
   if (id.startsWith('ampel-')) api.tabs.create({ url: AMPEL_CONFIG.classroomUrl });
+  if (id.startsWith('circle-')) api.tabs.create({ url: CIRCLE_CONFIG.classroomUrl });
 });
 
 // --- Nachrichten von Popup / Content-Script ---------------------------------
@@ -475,10 +570,17 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         break;
       }
       case 'circlePollNow': {
-        // Vom Popup beim Öffnen des Circle-Tabs ausgelöst.
-        const r = await pollCircle();
+        // Vom Popup beim Öffnen des Circle-Tabs ausgelöst -> nicht blinken.
+        const r = await pollCircle(false);
         const state = await getState();
-        sendResponse({ ...r, circle: state.circle, circleMeta: state.circleMeta });
+        sendResponse({ ...r, circle: state.circle, circleMeta: state.circleMeta, circleHistory: state.circleHistory });
+        break;
+      }
+      case 'circleSeen': {
+        // Nutzer hat den Circle-Tab gesehen -> goldenen Punkt löschen.
+        await setCircleMeta({ pending: 0 });
+        await refreshIcon();
+        sendResponse({ ok: true });
         break;
       }
       case 'acknowledge': {

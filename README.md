@@ -1,6 +1,6 @@
 # Börsenampel Watcher
 
-Ein Browser-Add-on, das die **Börsenampel** der [Aktienscout-Community](https://www.skool.com/cybermoney-1123) auf Skool im Auge behält und dir zeigt, **was sich seit deinem letzten Besuch geändert hat** – ohne dass du ständig selbst nachschauen musst.
+Ein Browser-Add-on, das die **Börsenampel** der [Aktienscout-Community](https://www.skool.com/cybermoney-1123) auf Skool im Auge behält und dir zeigt, **was sich seit deinem letzten Besuch geändert hat** – ohne dass du ständig selbst nachschauen musst. Zusätzlich wertet es die **Aktienengagements** der Community [„Der Circle zur ersten Million"](https://www.skool.com/der-circle-zur-ersten-million-6426) aus (beides unabhängig voneinander nutzbar).
 
 > 👉 **Du bist kein Entwickler?** Dann nimm die **[Anleitung in einfacher Sprache](ANLEITUNG.md)**.
 
@@ -16,15 +16,27 @@ Ein Browser-Add-on, das die **Börsenampel** der [Aktienscout-Community](https:/
 - 🆕 **„Seit deinem letzten Besuch"** – neue, gewechselte, entfernte Aktien auf einen Blick.
 - 🕒 **Statuswechsel-Logbuch** – eine eigene Historie der Ampel-Wechsel der letzten *X* Tage (die Skool-Seite selbst hat keine Historie).
 - 🔔 **Benachrichtigung + blinkendes Symbol**, wenn sich etwas tut.
-- 💼 **Circle-Tab** – wertet zusätzlich die Aktienengagements der Community [„Der Circle zur ersten Million"](https://www.skool.com/der-circle-zur-ersten-million-6426) aus: investiertes Kapital (gesamt + aktuell im Markt), realisierte Gewinne und die unrealisierten Gewinne/Verluste der laufenden Positionen. Braucht eine eigene Mitgliedschaft dort; ohne Zugang zeigt der Tab, wie man beitreten kann.
+- 💼 **Circle-Tab** – wertet zusätzlich die Aktienengagements der Community [„Der Circle zur ersten Million"](https://www.skool.com/der-circle-zur-ersten-million-6426) aus: investiertes Kapital (gesamt + aktuell im Markt), realisierte Gewinne und die unrealisierten Gewinne/Verluste der laufenden Positionen. Braucht nur die Mitgliedschaft **dort** – unabhängig von der Aktienscout-Mitgliedschaft; ohne Zugang zeigt der Tab, wie man beitreten kann.
+- 🟡 **Circle-Meldungen** – bei einem neuen Kauf oder Verkauf gibt es eine Benachrichtigung, ein Logbuch-Eintrag („Käufe & Verkäufe") und einen **goldenen Punkt oben links** auf dem Symbol. So bleiben die Zeichen getrennt und gleichzeitig sichtbar: rote Zahl unten rechts = Ampel-Änderungen, goldener Punkt oben links = Circle-Kauf/-Verkauf, beides zusammen = beides. Der Punkt verschwindet, sobald du den Circle-Tab öffnest.
 - 🔒 **Privat** – liest nur deine eigene, eingeloggte Skool-Sitzung; nichts wird irgendwohin gesendet.
+
+### Der Circle-Tab in Bildern
+
+Auswertung mit den vier Summen, dazu die Positions-Listen (auf-/zuklappbar) – laufende Positionen mit Kurs und unrealisiertem Gewinn/Verlust, abgeschlossene mit Ertrag, Prozent, Haltedauer und Summenzeile:
+
+<p align="center">
+  <img src="docs/screenshot-circle-uebersicht.png" alt="Circle: Auswertung" width="270">
+  <img src="docs/screenshot-circle-offen.png" alt="Circle: laufende Positionen" width="270">
+  <img src="docs/screenshot-circle-abgeschlossen.png" alt="Circle: abgeschlossene Positionen" width="270">
+</p>
 
 ## Voraussetzungen
 
-- Du bist **Mitglied der Aktienscout-Community** auf Skool und kannst die Börsenampel öffnen.
-- Du bist in dem Browser, in dem das Add-on läuft, **bei skool.com angemeldet**. (Die Anmeldung allein genügt – du musst nicht auf der Ampel-Seite sein.)
+- Du bist in dem Browser, in dem das Add-on läuft, **bei skool.com angemeldet**. (Die Anmeldung allein genügt – du musst keine der Seiten offen haben.)
+- Für den **Ampel-Tab**: Mitgliedschaft in der [Aktienscout-Community](https://www.skool.com/cybermoney-1123).
+- Für den **Circle-Tab**: Mitgliedschaft in [„Der Circle zur ersten Million"](https://www.skool.com/der-circle-zur-ersten-million-6426).
 
-Ohne Mitgliedschaft/Anmeldung zeigt das Add-on bewusst **keine** Daten.
+Die beiden Bereiche sind **unabhängig** – eine der beiden Mitgliedschaften reicht, um den jeweiligen Teil zu nutzen. Fehlt der Zugang zu einem Bereich, zeigt dieser Tab bewusst keine Daten, sondern einen Hinweis, wie man beitreten kann; der andere Tab funktioniert normal weiter. Ohne Skool-Anmeldung zeigt das Add-on gar nichts an – deine Daten bleiben geschützt.
 
 ## Installation
 
@@ -51,13 +63,13 @@ Anschließend auf das Ampel-Symbol klicken und **„Jetzt prüfen"** – der ers
 
 ## Wie es funktioniert (kurz)
 
-Skool ist eine Next.js-App; die komplette Ampel-Struktur steckt als sauberes JSON in der Seite (`__NEXT_DATA__`). Das Add-on liest dieses JSON – einmal pro Abruf im Hintergrund (mit deinen Login-Cookies) und zusätzlich bei jedem echten Seitenbesuch über ein Content-Script. Jede Aktie trägt einen `updatedAt`-Zeitstempel; daraus ergeben sich Wechsel/Neu/Bearbeitet/Entfernt durch Vergleich aufeinanderfolgender Lesungen. Alles wird nur lokal in `storage.local` gehalten.
+Skool ist eine Next.js-App; die komplette Ampel-Struktur steckt als sauberes JSON in der Seite (`__NEXT_DATA__`). Das Add-on liest dieses JSON – einmal pro Abruf im Hintergrund (mit deinen Login-Cookies) und zusätzlich bei jedem echten Seitenbesuch über ein Content-Script. Jede Aktie trägt einen `updatedAt`-Zeitstempel; daraus ergeben sich Wechsel/Neu/Bearbeitet/Entfernt durch Vergleich aufeinanderfolgender Lesungen. Der Circle-Tab liest auf demselben Weg die Engagement-Module (Kauf, Verkauf, Stückzahl, Ertrag stehen in den Modul-Texten), holt geänderte Module gezielt einzeln nach und rechnet die Summen lokal zusammen. Alles wird nur lokal in `storage.local` gehalten.
 
 ## Für Entwickler
 
 - **Quellcode:** alles in `extension/` (cross-browser geschrieben, `api = browser || chrome`).
-- **Build:** `node build.mjs` erzeugt `dist/chrome` und `dist/firefox` aus `extension/` (nur das Manifest unterscheidet sich je Ziel). Keine Abhängigkeiten, kein Bundler.
-- **Test:** `node test/lifecycle.test.mjs` prüft die Änderungserkennung über den ganzen Ablauf (Login → Bestätigen → Logout → Änderungen → Login) inkl. Logbuch und Begrenzung.
+- **Build:** `node build.mjs` erzeugt `dist/chrome` und `dist/firefox` aus `extension/` (nur das Manifest unterscheidet sich je Ziel). Zusätzlich entsteht `dist-test/` (git-ignoriert): eine parallel ladbare Test-Variante, bei der beide Beitritts-Hinweise simuliert werden – siehe Schalter in `extension/lib/debug.js`. Keine Abhängigkeiten, kein Bundler.
+- **Tests:** `node test/lifecycle.test.mjs` prüft die Änderungserkennung über den ganzen Ablauf (Login → Bestätigen → Logout → Änderungen → Login) inkl. Logbuch und Begrenzung; `node test/circle.test.mjs` prüft Titel-/Text-Parser und Portfolio-Rechnung des Circle-Tabs gegen alle live gesehenen Schreibweisen.
 - **Syntax-Check:** `node --check extension/<datei>.js`.
 - Mehr zu Architektur und Konventionen: siehe [`CLAUDE.md`](CLAUDE.md).
 
@@ -65,7 +77,7 @@ Nach Codeänderungen `node build.mjs` laufen lassen und die `dist/`-Ordner mit c
 
 ## Lizenz
 
-Noch keine Lizenz festgelegt. Wenn andere es frei nutzen/anpassen können sollen, empfiehlt sich z. B. eine MIT-Lizenz – einfach eine `LICENSE`-Datei ergänzen.
+[MIT](LICENSE) – frei nutzbar, anpassbar und weiterverteilbar; ohne Gewähr. Einzige Bedingung: Der Lizenztext samt Copyright-Hinweis bleibt enthalten.
 
 ---
 
