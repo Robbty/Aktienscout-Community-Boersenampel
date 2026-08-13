@@ -17,7 +17,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 // Im selben Realm ausführen (ampel.js exportiert auf globalThis) — sonst hätten
 // die im vm-Kontext erzeugten Arrays fremde Prototypen und deepStrictEqual scheitert.
 runInThisContext(readFileSync(join(here, '..', 'extension', 'lib', 'ampel.js'), 'utf8'));
-const { buildSnapshot, diffSnapshots, diffCount, pruneHistory } = globalThis;
+const { AMPEL_CONFIG, buildSnapshot, diffSnapshots, diffCount, pruneHistory, classifyAmpelAccess } = globalThis;
 
 // Minimaler __NEXT_DATA__-Nachbau in Skool-Form.
 function nd(sections) {
@@ -148,5 +148,31 @@ assert.equal(kept.length, 2, 'auf max=2 begrenzt');
 assert.equal(kept.some((e) => e.name === 'alt'), false, 'ältestes Datum ("alt") wurde verworfen');
 assert.deepEqual(kept.map((e) => e.name).sort(), ['mittel', 'neu'], 'die zwei jüngsten bleiben');
 assert.equal(pruneHistory(raw, 5), raw, 'unter dem Limit unverändert');
+
+// --- Zugangs-Klassifizierung + fester VIP-Link -------------------------------
+assert.equal(
+  AMPEL_CONFIG.joinUrl,
+  'https://www.skool.com/cybermoney-1123/about?ref=5a2ff2ee6a214a479e3713e9b2d2bc5f',
+  'VIP-Affiliate-Link ist fest hinterlegt',
+);
+
+function accessNd(children) {
+  return { props: { pageProps: { course: { course: { metadata: { title: 'Ampel' }, updatedAt: 'X' }, children } } } };
+}
+assert.equal(classifyAmpelAccess(null), 'loggedOut', 'kein Kursbaum -> wie ausgeloggt');
+assert.equal(classifyAmpelAccess({ props: { pageProps: {} } }), 'loggedOut');
+assert.equal(
+  classifyAmpelAccess(accessNd([
+    { course: { id: 's1', metadata: { title: 'grüne Ampel', hasAccess: 0 } }, children: [] },
+  ])),
+  'noAccess',
+  'eingeloggt ohne Mitgliedschaft -> noAccess (VIP-Hinweis)',
+);
+assert.equal(
+  classifyAmpelAccess(accessNd([
+    { course: { id: 's1', metadata: { title: 'grüne Ampel', hasAccess: 1 } }, children: [] },
+  ])),
+  'ok',
+);
 
 console.log('lifecycle.test.mjs: alle Assertions bestanden ✓');

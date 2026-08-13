@@ -136,4 +136,51 @@ footer { border-top: 1px solid var(--line); padding: 8px 12px; display: flex; fl
 .primary-btn:hover { background: #1669d6; }
 .primary-btn:disabled { opacity: .6; cursor: default; }
 
+/* Tabs (Ampel | Circle) */
+.tabs { display: flex; border-bottom: 1px solid var(--line); flex: none; }
+.tab {
+  flex: 1; padding: 8px; background: none; border: none;
+  border-bottom: 2px solid transparent;
+  font: inherit; font-weight: 600; color: var(--muted); cursor: pointer;
+}
+.tab:hover { background: var(--hover); }
+.tab.active { color: #1a73e8; border-bottom-color: #1a73e8; }
+
+/* Circle: Summen-Block */
+.circle-block { padding: 8px 12px; border-bottom: 1px solid var(--line); }
+.circle-block h2 { margin: 0 0 6px; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); }
+.stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.stat { background: var(--hover); border-radius: 8px; padding: 7px 9px; display: flex; flex-direction: column; gap: 2px; }
+.stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .02em; }
+.stat-value { font-size: 15px; font-weight: 700; }
+.stat-value.pos, .pos-table td.pos { color: var(--green); }
+.stat-value.neg, .pos-table td.neg { color: var(--red); }
+.crosscheck { margin-top: 6px; font-size: 11px; color: var(--muted); }
+
+/* Circle: Positions-Tabellen */
+.pos-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.pos-table th {
+  text-align: left; font-size: 10px; text-transform: uppercase;
+  color: var(--muted); font-weight: 600; padding: 2px 4px;
+  border-bottom: 1px solid var(--line);
+}
+.pos-table th.num, .pos-table td.num { text-align: right; white-space: nowrap; }
+.pos-table td { padding: 4px; border-bottom: 1px solid var(--hover); vertical-align: top; }
+.pos-table tbody tr { cursor: pointer; }
+.pos-table tbody tr:hover { background: var(--hover); }
+.pos-table td.name { overflow: hidden; text-overflow: ellipsis; max-width: 130px; white-space: nowrap; }
+.pos-table tr.incomplete { opacity: .55; }
+.pos-table tfoot td { border-top: 1px solid var(--line); border-bottom: none; font-weight: 700; }
+/* Positions-Abschnitte auf-/zuklappbar (gleiches Muster wie "Zuletzt bearbeitet") */
+.circle-block .activity-head h2 { display: flex; align-items: center; gap: 6px; }
+.circle-block.collapsed .pos-table { display: none; }
+.circle-block.collapsed .chev { transform: rotate(-90deg); }
+.pct { display: block; font-size: 10px; color: var(--muted); }
+
+/* Circle: kein Zugang -> Beitritts-Hinweis */
+.noaccess { padding: 16px 14px; text-align: center; }
+.noaccess-head { font-size: 15px; font-weight: 700; margin: 0 0 6px; }
+.noaccess-text { color: var(--muted); font-size: 12px; margin: 0 0 12px; }
+.join-btn { display: inline-block; text-decoration: none; }
+
 .hidden, [hidden] { display: none !important; }

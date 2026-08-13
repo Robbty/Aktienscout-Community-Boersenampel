@@ -17,6 +17,11 @@ const AMPEL_CONFIG = {
 AMPEL_CONFIG.classroomUrl =
   'https://www.skool.com/' + AMPEL_CONFIG.community + '/classroom/' + AMPEL_CONFIG.course;
 
+// Fester Affiliate-Link für den VIP-Hinweis ohne Zugang (bewusst NICHT
+// konfigurierbar).
+AMPEL_CONFIG.joinUrl =
+  'https://www.skool.com/cybermoney-1123/about?ref=5a2ff2ee6a214a479e3713e9b2d2bc5f';
+
 // URL für eine einzelne Aktie (zum Öffnen im Skool-Classroom)
 function stockUrl(id) {
   return AMPEL_CONFIG.classroomUrl + '?md=' + id;
@@ -41,6 +46,24 @@ function extractNextDataFromHtml(html) {
   } catch (e) {
     return null;
   }
+}
+
+// --- Zugangs-Klassifizierung --------------------------------------------------
+// 'ok' | 'noAccess' | 'loggedOut' — analog zu classifyCircleAccess (circle.js).
+// Die Menüpunkte tragen metadata.hasAccess (live geprüft): eingeloggt als
+// Mitglied ist mindestens einer freigeschaltet. Im Zweifel 'loggedOut' -> das
+// Popup zeigt dann den Login-Hinweis statt gecachter Daten.
+function classifyAmpelAccess(nextData) {
+  const pp = nextData && nextData.props && nextData.props.pageProps;
+  const root = pp && pp.course;
+  if (!root || !root.course) return 'loggedOut';
+  const sections = root.children || [];
+  const anyAccess = sections.some(
+    (s) => s.course && s.course.metadata &&
+      (s.course.metadata.hasAccess === 1 || s.course.metadata.hasAccess === true),
+  );
+  if (!sections.length || !anyAccess) return 'noAccess';
+  return 'ok';
 }
 
 // --- Snapshot aus dem __NEXT_DATA__-JSON bauen ------------------------------
@@ -170,6 +193,7 @@ if (typeof globalThis !== 'undefined') {
   globalThis.stockUrl = stockUrl;
   globalThis.ampelColor = ampelColor;
   globalThis.extractNextDataFromHtml = extractNextDataFromHtml;
+  globalThis.classifyAmpelAccess = classifyAmpelAccess;
   globalThis.buildSnapshot = buildSnapshot;
   globalThis.buildSnapshotFromDocument = buildSnapshotFromDocument;
   globalThis.diffSnapshots = diffSnapshots;

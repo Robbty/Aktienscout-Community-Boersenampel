@@ -13,7 +13,14 @@
     <div id="status" class="status"></div>
   </header>
 
+  <nav class="tabs">
+    <button id="tabBtnAmpel" class="tab active" type="button">Ampel</button>
+    <button id="tabBtnCircle" class="tab" type="button">Circle</button>
+  </nav>
+
   <div class="content" id="content">
+
+  <div id="tab-ampel">
 
   <section id="changes" class="changes" hidden>
     <div class="changes-head">
@@ -45,6 +52,65 @@
 
   <main id="groups" class="groups" hidden></main>
 
+  <div id="ampelNoAccess" class="noaccess" hidden>
+    <p class="noaccess-head">Kein VIP-Zugang</p>
+    <p class="noaccess-text">Du bist bei Skool angemeldet, aber (noch) kein Mitglied der
+      Aktienscout-Community – die Börsenampel ist den VIP-Mitgliedern vorbehalten.</p>
+    <a id="ampelJoin" class="primary-btn join-btn" target="_blank" rel="noreferrer">VIP werden</a>
+  </div>
+
+  </div><!-- /tab-ampel -->
+
+  <div id="tab-circle" hidden>
+
+    <section id="circleSummary" class="circle-block" hidden>
+      <h2>Auswertung</h2>
+      <div class="stat-grid">
+        <div class="stat"><span class="stat-label">Investiert (kumuliert)</span><span class="stat-value" id="cInvested"></span></div>
+        <div class="stat"><span class="stat-label">Aktuell im Markt</span><span class="stat-value" id="cDeployed"></span></div>
+        <div class="stat"><span class="stat-label">Realisierte Gewinne</span><span class="stat-value" id="cRealized"></span></div>
+        <div class="stat"><span class="stat-label">Unrealisiert (offen)</span><span class="stat-value" id="cUnrealized"></span></div>
+      </div>
+      <div class="crosscheck" id="cCrosscheck" hidden></div>
+    </section>
+
+    <section id="circleClosed" class="circle-block" hidden>
+      <div class="activity-head toggle" id="circleClosedToggle">
+        <h2>Abgeschlossen <span class="group-count" id="circleClosedCount"></span></h2>
+        <span class="chev">▾</span>
+      </div>
+      <table class="pos-table">
+        <thead><tr><th>Aktie</th><th class="num">Einsatz</th><th class="num">Ertrag</th><th class="num">Dauer</th></tr></thead>
+        <tbody></tbody>
+        <tfoot><tr><td>Summe</td><td class="num" id="closedSumBuy"></td><td class="num" id="closedSumErtrag"></td><td class="num" id="closedAvgDays"></td></tr></tfoot>
+      </table>
+    </section>
+
+    <section id="circleOpen" class="circle-block" hidden>
+      <div class="activity-head toggle" id="circleOpenToggle">
+        <h2>Laufende Positionen <span class="group-count" id="circleOpenCount"></span></h2>
+        <span class="chev">▾</span>
+      </div>
+      <table class="pos-table">
+        <thead><tr><th>Aktie</th><th class="num">Stück</th><th class="num">Einsatz</th><th class="num">Kurs</th><th class="num">G/V</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section id="circleUnparseable" class="circle-block" hidden>
+      <h2>Nicht auswertbar</h2>
+      <ul class="changes-list"></ul>
+    </section>
+
+    <div id="circleNoAccess" class="noaccess" hidden>
+      <p class="noaccess-head">Kein Zugang zum Circle-Kurs</p>
+      <p class="noaccess-text">Für die Auswertung der Aktienengagements brauchst du eine Mitgliedschaft
+        in der Skool-Community „Der Circle zur ersten Million“.</p>
+      <a id="circleJoin" class="primary-btn join-btn" target="_blank" rel="noreferrer">Zur Community</a>
+    </div>
+
+  </div><!-- /tab-circle -->
+
   </div><!-- /content -->
 
   <footer>
@@ -58,6 +124,7 @@
   </footer>
 
   <script src="lib/ampel.js"></script>
+  <script src="lib/circle.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

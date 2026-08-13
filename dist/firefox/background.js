@@ -12,6 +12,9 @@
  *  - current    : zuletzt abgerufener Zustand
  *  - settings   : { intervalMinutes }
  *  - meta       : { lastPollAt, lastPollOk, lastError, source }
+ *  - circle     : { courseTitle, buildId, modules } — Circle-Engagements inkl.
+ *                 geparster Bodies (Trade-Daten), inkrementell geerntet
+ *  - circleMeta : { lastPollAt, lastPollOk, access, lastError }
  */
 
 // Cross-Browser: Firefox stellt `browser` bereit, Chrome `chrome`. Beide liefern
@@ -21,7 +24,7 @@ const api = globalThis.browser || globalThis.chrome;
 // Chrome (Service-Worker) lädt die geteilte Logik via importScripts. In Firefox
 // kommt sie über das background.scripts-Array; dort gibt es kein importScripts.
 if (typeof importScripts === 'function') {
-  importScripts('lib/ampel.js');
+  importScripts('lib/debug.js', 'lib/ampel.js', 'lib/circle.js');
 }
 
 const DEFAULTS = { intervalMinutes: 60, blinkEnabled: true, activityDays: 7 };
@@ -61,13 +64,15 @@ async function stopBlink() {
 
 // --- Storage-Helfer ---------------------------------------------------------
 async function getState() {
-  const s = await api.storage.local.get(['baseline', 'current', 'settings', 'meta', 'history']);
+  const s = await api.storage.local.get(['baseline', 'current', 'settings', 'meta', 'history', 'circle', 'circleMeta']);
   return {
     baseline: s.baseline || null,
     current: s.current || null,
     settings: Object.assign({}, DEFAULTS, s.settings || {}),
     meta: s.meta || {},
     history: s.history || [],
+    circle: s.circle || null,
+    circleMeta: s.circleMeta || {},
   };
 }
 
@@ -129,7 +134,7 @@ async function ingestSnapshot(snapshot, source, allowBlink = false) {
     toSet.baseline = Object.assign({}, baseline, { sections: snapshot.sections });
   }
   await api.storage.local.set(toSet);
-  const metaPatch = { lastPollAt: Date.now(), lastPollOk: true, lastError: null, source };
+  const metaPatch = { lastPollAt: Date.now(), lastPollOk: true, access: 'ok', lastError: null, source };
   // Beginn der Überwachung einmalig festhalten (für ehrliche "seit"-Anzeige).
   if (!meta.watchingSince) metaPatch.watchingSince = new Date().toISOString();
   await setMeta(metaPatch);
@@ -150,6 +155,18 @@ async function ingestSnapshot(snapshot, source, allowBlink = false) {
 
 // --- Hintergrund-Abruf ------------------------------------------------------
 async function pollViaFetch(allowBlink = false) {
+  // Test-Schalter (lib/debug.js): fehlenden Zugang bzw. Logout simulieren.
+  const sim = (globalThis.DEBUG_SIMULATE && globalThis.DEBUG_SIMULATE.ampel) || null;
+  if (sim === 'noAccess' || sim === 'loggedOut') {
+    await setMeta({
+      lastPollAt: Date.now(),
+      lastPollOk: false,
+      access: sim,
+      lastError: 'TEST-Schalter aktiv (lib/debug.js)',
+    });
+    await refreshBadge();
+    return { ok: false, access: sim };
+  }
   try {
     const res = await fetch(AMPEL_CONFIG.classroomUrl, {
       credentials: 'include',
@@ -158,6 +175,18 @@ async function pollViaFetch(allowBlink = false) {
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const html = await res.text();
     const nextData = extractNextDataFromHtml(html);
+    // Eingeloggt, aber kein Mitglied? -> eigener Zustand mit VIP-Hinweis.
+    const access = classifyAmpelAccess(nextData);
+    if (access !== 'ok') {
+      await setMeta({
+        lastPollAt: Date.now(),
+        lastPollOk: false,
+        access,
+        lastError: access === 'noAccess' ? 'Kein Zugang zur Aktienscout-Community' : 'Nicht eingeloggt',
+      });
+      await refreshBadge();
+      return { ok: false, access };
+    }
     const snapshot = buildSnapshot(nextData);
     if (!snapshot || snapshot.stockCount === 0) {
       // Vermutlich ausgeloggt / kein Zugriff -> nicht als Erfolg werten.
@@ -166,9 +195,163 @@ async function pollViaFetch(allowBlink = false) {
     await ingestSnapshot(snapshot, 'fetch', allowBlink);
     return { ok: true };
   } catch (e) {
-    await setMeta({ lastPollAt: Date.now(), lastPollOk: false, lastError: String(e.message || e) });
+    const msg = String(e.message || e);
+    // Ohne gültige Session antwortet Skool mit 401/403 -> "nicht eingeloggt".
+    const access = /HTTP (401|403)/.test(msg) ? 'loggedOut' : 'error';
+    await setMeta({ lastPollAt: Date.now(), lastPollOk: false, access, lastError: msg });
     await refreshBadge();
-    return { ok: false, error: String(e.message || e) };
+    return { ok: false, access, error: msg };
+  }
+}
+
+// --- Circle: Poll mit inkrementellem Body-Harvest -----------------------------
+// Die Beträge stehen nur in den Modul-Bodies, die Skool pro Modul liefert.
+// Deshalb: Kursbaum holen (1 Request), dann nur die Module nachladen, deren
+// updatedAt sich seit dem letzten geparsten Body geändert hat.
+const CIRCLE_HARVEST_CAP = 25;      // max. Modul-Abrufe pro Lauf (Kurs hat ~20)
+const CIRCLE_FETCH_DELAY_MS = 350;  // höflicher Abstand zwischen Modul-Abrufen
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function setCircleMeta(patch) {
+  const { circleMeta } = await getState();
+  await api.storage.local.set({ circleMeta: Object.assign({}, circleMeta, patch) });
+}
+
+// Kursseite als HTML holen -> __NEXT_DATA__ (Baum + buildId + ggf. ein Body).
+async function fetchCircleHtml() {
+  const res = await fetch(CIRCLE_CONFIG.classroomUrl, {
+    credentials: 'include',
+    headers: { 'Accept': 'text/html' },
+  });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const nextData = extractNextDataFromHtml(await res.text());
+  return { nextData, buildId: (nextData && nextData.buildId) || null };
+}
+
+// Body eines einzelnen Moduls über die Next.js-Datenroute holen.
+// undefined = Route gescheitert (buildId veraltet?); null = Modul hat keinen Body.
+async function fetchCircleModuleDesc(buildId, id) {
+  if (!buildId) return undefined;
+  try {
+    const res = await fetch(circleDataUrl(buildId, id), {
+      credentials: 'include',
+      headers: { 'Accept': 'application/json' },
+    });
+    if (!res.ok) return undefined;
+    const index = buildCircleIndex(await res.json());
+    if (!index) return undefined;
+    return Object.prototype.hasOwnProperty.call(index.descs, id) ? index.descs[id] : null;
+  } catch (e) {
+    return undefined;
+  }
+}
+
+// Geholten Body parsen und im Modul-Eintrag ablegen. bodyUpdatedAt merkt sich,
+// zu welchem Stand der Body gehört -> Basis der inkrementellen Auswahl.
+function applyCircleBody(entry, desc) {
+  const text = proseMirrorText(desc);
+  entry.trade = null;
+  entry.statistik = null;
+  entry.parseError = null;
+  if (entry.titleInfo.kind === 'meta') {
+    entry.statistik = text != null ? parseStatistik(text) : null;
+  } else if (text == null) {
+    entry.parseError = 'Inhalt nicht lesbar';
+  } else {
+    entry.trade = parseTradeBody(text);
+    if (!entry.trade) entry.parseError = 'Keine Trade-Daten erkannt';
+  }
+  entry.bodyUpdatedAt = entry.updatedAt;
+}
+
+async function pollCircle() {
+  // Test-Schalter (lib/debug.js): fehlenden Zugang bzw. Logout simulieren.
+  const sim = (globalThis.DEBUG_SIMULATE && globalThis.DEBUG_SIMULATE.circle) || null;
+  if (sim === 'noAccess' || sim === 'loggedOut') {
+    await setCircleMeta({
+      lastPollAt: Date.now(),
+      lastPollOk: false,
+      access: sim,
+      lastError: 'TEST-Schalter aktiv (lib/debug.js)',
+    });
+    return { ok: false, access: sim };
+  }
+  try {
+    const { nextData, buildId } = await fetchCircleHtml();
+    const index = buildCircleIndex(nextData);
+    const access = classifyCircleAccess(index);
+    if (access !== 'ok') {
+      // Wie bei der Ampel: ein gescheiterter Abruf überschreibt NIE die Daten,
+      // damit der Stand die Logout-Lücke überlebt.
+      await setCircleMeta({
+        lastPollAt: Date.now(),
+        lastPollOk: false,
+        access,
+        lastError: access === 'noAccess' ? 'Kein Zugang zum Circle-Kurs' : 'Nicht eingeloggt',
+      });
+      return { ok: false, access };
+    }
+
+    const { circle } = await getState();
+    const oldModules = (circle && circle.modules) || {};
+
+    // Neuen Modul-Stand aufbauen; bereits geparste Bodies wandern mit.
+    const modules = {};
+    for (const m of Object.values(index.modules)) {
+      const prev = oldModules[m.id];
+      modules[m.id] = {
+        id: m.id,
+        title: m.title,
+        updatedAt: m.updatedAt,
+        titleInfo: parseModuleTitle(m.title),
+        bodyUpdatedAt: prev ? prev.bodyUpdatedAt : null,
+        trade: prev ? prev.trade : null,
+        statistik: prev ? prev.statistik : null,
+        parseError: prev ? prev.parseError : null,
+      };
+    }
+
+    // Bodies, die der Seitenabruf gratis mitgeliefert hat, sofort übernehmen.
+    for (const [id, desc] of Object.entries(index.descs)) {
+      if (modules[id] && modules[id].bodyUpdatedAt !== modules[id].updatedAt) {
+        applyCircleBody(modules[id], desc);
+      }
+    }
+
+    // Fehlende/veraltete Bodies gezielt nachladen (gedrosselt, gedeckelt).
+    let effectiveBuildId = buildId || (circle && circle.buildId) || null;
+    const stale = selectStaleModules(index, modules).slice(0, CIRCLE_HARVEST_CAP);
+    for (const id of stale) {
+      await sleep(CIRCLE_FETCH_DELAY_MS);
+      let desc = await fetchCircleModuleDesc(effectiveBuildId, id);
+      if (desc === undefined) {
+        // buildId vermutlich veraltet (Skool-Deploy) -> einmal frisch lesen.
+        const fresh = await fetchCircleHtml();
+        effectiveBuildId = fresh.buildId || effectiveBuildId;
+        desc = await fetchCircleModuleDesc(effectiveBuildId, id);
+        if (desc === undefined) break; // Rest heilt beim nächsten Poll
+      }
+      applyCircleBody(modules[id], desc);
+    }
+
+    await api.storage.local.set({
+      circle: { courseTitle: index.courseTitle, buildId: effectiveBuildId, modules },
+    });
+    await setCircleMeta({ lastPollAt: Date.now(), lastPollOk: true, access: 'ok', lastError: null });
+    return { ok: true, access: 'ok' };
+  } catch (e) {
+    const msg = String(e.message || e);
+    // Ohne gültige Session antwortet Skool mit 401/403 (live geprüft) ->
+    // als "nicht eingeloggt" ausweisen, nicht als technischer Fehler.
+    const access = /HTTP (401|403)/.test(msg) ? 'loggedOut' : 'error';
+    await setCircleMeta({
+      lastPollAt: Date.now(),
+      lastPollOk: false,
+      access,
+      lastError: msg,
+    });
+    return { ok: false, access, error: msg };
   }
 }
 
@@ -215,7 +398,9 @@ async function ensureAlarm() {
   await api.alarms.create(ALARM, { periodInMinutes: period });
 }
 
-async function setInterval(minutes) {
+// Bewusst NICHT "setInterval" nennen: eine Top-Level-Funktion dieses Namens
+// würde das eingebaute setInterval überschreiben, das startBlink() braucht.
+async function setPollInterval(minutes) {
   const { settings } = await getState();
   const intervalMinutes = Math.max(1, Number(minutes) || DEFAULTS.intervalMinutes);
   await api.storage.local.set({ settings: Object.assign({}, settings, { intervalMinutes }) });
@@ -238,16 +423,21 @@ api.runtime.onInstalled.addListener(async () => {
   await ensureAlarm();
   await setIcon(ICON_ON);
   await pollViaFetch(false); // beim Installieren nicht blinken
+  await pollCircle();
 });
 
 api.runtime.onStartup.addListener(async () => {
   await ensureAlarm();
   await setIcon(ICON_ON);
   await pollViaFetch(false); // beim Browserstart nicht blinken
+  await pollCircle();
 });
 
-api.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === ALARM) pollViaFetch(true); // Hintergrund-Abruf darf blinken
+api.alarms.onAlarm.addListener(async (alarm) => {
+  if (alarm.name === ALARM) {
+    await pollViaFetch(true); // Hintergrund-Abruf darf blinken
+    await pollCircle();       // danach den Circle-Kurs, nacheinander bleibt es höflich
+  }
 });
 
 // Klick auf eine Benachrichtigung öffnet die Ampel-Seite.
@@ -274,8 +464,21 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
       case 'capture': {
         // Content-Script liefert einen garantiert eingeloggten Snapshot.
+        // Bei aktivem Test-Schalter ignorieren, sonst hebelt ein offener
+        // Ampel-Tab die Simulation sofort wieder aus.
+        if (globalThis.DEBUG_SIMULATE && globalThis.DEBUG_SIMULATE.ampel) {
+          sendResponse({ ok: false, error: 'TEST-Schalter aktiv (lib/debug.js)' });
+          break;
+        }
         await ingestSnapshot(msg.snapshot, 'page', true);
         sendResponse({ ok: true });
+        break;
+      }
+      case 'circlePollNow': {
+        // Vom Popup beim Öffnen des Circle-Tabs ausgelöst.
+        const r = await pollCircle();
+        const state = await getState();
+        sendResponse({ ...r, circle: state.circle, circleMeta: state.circleMeta });
         break;
       }
       case 'acknowledge': {
@@ -285,7 +488,7 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         break;
       }
       case 'setInterval': {
-        await setInterval(msg.minutes);
+        await setPollInterval(msg.minutes);
         sendResponse({ ok: true });
         break;
       }

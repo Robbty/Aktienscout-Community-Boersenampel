@@ -23,6 +23,7 @@ Kein ständiges Nachschauen mehr. Das Symbol passt auf.
 - 🆕 „Seit deinem letzten Besuch": Was ist neu? Was hat gewechselt?
 - 🕒 „Statuswechsel der letzten X Tage": deine eigene kleine Chronik. *X* stellst du selbst ein.
 - 🔔 Es blinkt und meldet sich, wenn etwas passiert.
+- 💼 **Neu: der Circle-Tab.** Er rechnet die Aktien-Engagements der Community „Der Circle zur ersten Million" für dich zusammen. Mehr dazu weiter unten.
 - 🔒 Alles bleibt bei dir. Nichts wird verschickt.
 
 👉 **Doppelklick auf eine Aktie** öffnet sie direkt in Skool. Praktisch!
@@ -37,6 +38,8 @@ Kein ständiges Nachschauen mehr. Das Symbol passt auf.
 Das reicht schon. Du musst nicht mal die Ampel-Seite offen haben.
 
 > Nicht angemeldet? Dann zeigt das Symbol nichts an. Das ist Absicht – deine Daten bleiben geschützt.
+>
+> Angemeldet, aber noch kein Mitglied? Dann zeigt dir das Add-on einen Knopf, über den du **VIP werden** kannst.
 
 ---
 
@@ -76,6 +79,52 @@ Das Ampel-Symbol ist jetzt oben rechts. Tipp: Auf das Puzzleteil 🧩 klicken un
 
 ---
 
+## Der Circle-Tab 💼
+
+Oben im Fenster gibt es zwei Reiter: **Ampel** und **Circle**.
+
+Der Circle-Tab schaut in die Community **„Der Circle zur ersten Million"**. Dort macht der Autor echte Aktien-Käufe und -Verkäufe öffentlich.
+
+Das Add-on rechnet alles für dich zusammen:
+
+- 💰 **Investiert** – wie viel Geld insgesamt eingesetzt wurde.
+- 📈 **Aktuell im Markt** – wie viel gerade in laufenden Käufen steckt.
+- ✅ **Realisierte Gewinne** – was bei den Verkäufen herauskam.
+- 🔮 **Unrealisiert** – was die laufenden Positionen gerade im Plus oder Minus sind.
+
+Darunter siehst du jede Position einzeln. Klick drauf – und sie öffnet sich in Skool.
+
+> 👥 Dafür brauchst du eine **eigene Mitgliedschaft** in dieser zweiten Community.
+> Ohne Zugang zeigt dir der Tab einen Knopf, über den du beitreten kannst.
+> Der Ampel-Teil funktioniert auch ohne – ganz normal weiter.
+
+---
+
+## Update einbauen 🔄
+
+Es gibt eine neue Version? So holst du sie dir. Dauert zwei Minuten.
+
+1. **Lade das Projekt neu herunter** – gleicher Link wie beim ersten Mal:
+   👉 **[Projekt als ZIP herunterladen](https://github.com/Robbty/Aktienscout-Community-Boersenampel/archive/refs/heads/main.zip)**
+2. **Entpacke das ZIP an denselben Ort** wie damals. Ersetze dabei den alten Ordner (Frage „Dateien ersetzen?" mit **Ja** beantworten).
+
+**Dann in Chrome (oder Edge, Brave, Opera):**
+
+3. Tippe in die Adresszeile: **`chrome://extensions`** und drücke Enter.
+4. Suche die Karte der Börsenampel und klicke auf den **runden Pfeil ↻** („Aktualisieren"). Fertig! 🎉
+
+Deine Einstellungen und die Chronik **bleiben erhalten**. 👍
+
+> ⚠️ **Wichtig:** Nicht „Entfernen" und neu laden – dabei gehen Einstellungen und Chronik verloren. Der Pfeil ↻ reicht völlig.
+>
+> Hast du das ZIP an einen **anderen** Ort entpackt? Dann geht es nur über „Entfernen" und **„Entpackte Erweiterung laden"** mit dem neuen Ordner. Die Chronik beginnt dann leider von vorn.
+
+**In Firefox:**
+
+3. Firefox lädt das Add-on ja bei jedem Start neu (siehe oben). Einfach wie gewohnt über **`about:debugging`** laden – es nimmt automatisch die neue Version aus dem ersetzten Ordner.
+
+---
+
 ## Kleine Tipps
 
 - ⏱️ **Wie oft geprüft wird,** stellst du unten ein („Prüfen alle … Min."). Öfter = schnellere Meldungen.
@@ -89,6 +138,9 @@ Das Ampel-Symbol ist jetzt oben rechts. Tipp: Auf das Puzzleteil 🧩 klicken un
 
 **Es zeigt nichts an. 😟**
 Bist du bei skool.com angemeldet? Steht da „Eingeloggt?", dann erst anmelden, dann „Jetzt prüfen".
+
+**Der Circle-Tab zeigt nichts an.**
+Dafür brauchst du die Mitgliedschaft in der Circle-Community. Ohne sie zeigt der Tab einen Knopf zum Beitreten – die Ampel funktioniert trotzdem normal.
 
 **Sieht jemand anderes meine Daten?**
 Nein. Alles bleibt nur in deinem Browser.

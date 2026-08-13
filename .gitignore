@@ -17,6 +17,10 @@ npm-debug.log*
 # Hinweis: dist/ wird bewusst MIT eingecheckt, damit Nicht-Entwickler die
 # fertigen Browser-Ordner ohne Build laden können. Erzeugt via `node build.mjs`.
 
+# Lokale Test-Variante mit aktiviertem DEBUG_SIMULATE (nur zum Ausprobieren
+# der Beitritts-Hinweise) — nicht verteilen.
+dist-test/
+
 # Verpackte Extension
 *.zip
 *.crx

@@ -16,6 +16,7 @@ Ein Browser-Add-on, das die **Börsenampel** der [Aktienscout-Community](https:/
 - 🆕 **„Seit deinem letzten Besuch"** – neue, gewechselte, entfernte Aktien auf einen Blick.
 - 🕒 **Statuswechsel-Logbuch** – eine eigene Historie der Ampel-Wechsel der letzten *X* Tage (die Skool-Seite selbst hat keine Historie).
 - 🔔 **Benachrichtigung + blinkendes Symbol**, wenn sich etwas tut.
+- 💼 **Circle-Tab** – wertet zusätzlich die Aktienengagements der Community [„Der Circle zur ersten Million"](https://www.skool.com/der-circle-zur-ersten-million-6426) aus: investiertes Kapital (gesamt + aktuell im Markt), realisierte Gewinne und die unrealisierten Gewinne/Verluste der laufenden Positionen. Braucht eine eigene Mitgliedschaft dort; ohne Zugang zeigt der Tab, wie man beitreten kann.
 - 🔒 **Privat** – liest nur deine eigene, eingeloggte Skool-Sitzung; nichts wird irgendwohin gesendet.
 
 ## Voraussetzungen

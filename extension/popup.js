@@ -5,9 +5,11 @@
 const SECTION_ORDER = ['green', 'yellow', 'red', 'other'];
 const SECTION_LABEL = { green: 'Grüne Ampel', yellow: 'Gelbe Ampel', red: 'Rote Ampel', other: 'Sonstige' };
 
-let state = null;       // { baseline, current, settings, meta, diff }
+let state = null;       // { baseline, current, settings, meta, diff, circle, circleMeta }
 let changedIds = new Set();
 let collapsed = { green: true, yellow: true, red: true, other: true };
+let activeTab = 'ampel';   // 'ampel' | 'circle' — bewusst nicht persistiert
+let circleChecked = false; // Zugang pro Popup-Öffnung nur einmal frisch prüfen
 
 const api = globalThis.browser || globalThis.chrome;
 
@@ -33,8 +35,17 @@ function colorOf(stock) { return stock.color || 'other'; }
 
 // --- Render: Statuszeile ----------------------------------------------------
 function renderStatus() {
+  if (activeTab !== 'ampel') return; // die Kopf-Statuszeile gehört gerade dem Circle-Tab
   const el = document.getElementById('status');
   const meta = state.meta || {};
+  // Eingeloggt, aber kein Mitglied -> VIP-Hinweis (Block darunter zeigt den Link).
+  if (meta.lastPollOk === false && meta.access === 'noAccess') {
+    el.innerHTML =
+      '<span class="status-head">Kein VIP-Zugang</span>' +
+      '<span class="status-hint">Angemeldet bist du – es fehlt nur die Mitgliedschaft.</span>';
+    el.classList.add('error');
+    return;
+  }
   if (!state.current) {
     if (meta.lastPollOk === false) {
       el.innerHTML =
@@ -316,6 +327,10 @@ function renderAll() {
   renderStatus();
   const ok = isLoggedIn();
   setDataVisible(ok);
+  // VIP-Hinweis nur im "eingeloggt, aber kein Mitglied"-Fall.
+  const noAccess = !ok && state.meta && state.meta.access === 'noAccess';
+  document.getElementById('ampelNoAccess').hidden = !noAccess;
+  document.getElementById('ampelJoin').href = AMPEL_CONFIG.joinUrl;
   if (ok) {
     renderChanges();
     renderHistory();
@@ -335,7 +350,269 @@ function showChecking() {
   el.classList.remove('error');
   el.textContent = 'Prüfe Login…';
   setDataVisible(false); // nichts Sensibles zeigen, bis der Login bestätigt ist
+  document.getElementById('ampelNoAccess').hidden = true;
 }
+
+// --- Circle-Tab ---------------------------------------------------------------
+// Die Auswertung (computePortfolio) läuft komplett hier im Popup über den vom
+// Worker geernteten Modul-Stand — nichts Aggregiertes wird persistiert, damit
+// Parser-Korrekturen rückwirkend alle Zahlen richtigstellen.
+const CIRCLE_BLOCKS = ['circleSummary', 'circleOpen', 'circleClosed', 'circleUnparseable'];
+
+function fmtEur(n) {
+  return Number(n).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+}
+
+function signClass(n) { return n > 0 ? 'pos' : n < 0 ? 'neg' : ''; }
+
+function setCircleStatus(text, isError) {
+  if (activeTab !== 'circle') return;
+  const el = document.getElementById('status');
+  el.textContent = text;
+  el.classList.toggle('error', !!isError);
+}
+
+function hideCircleBlocks() {
+  for (const id of CIRCLE_BLOCKS.concat('circleNoAccess')) document.getElementById(id).hidden = true;
+}
+
+function openCircleModule(id) {
+  api.tabs.create({ url: circleModuleUrl(id) });
+}
+
+function td(text, cls) {
+  const el = document.createElement('td');
+  el.textContent = text;
+  if (cls) el.className = cls;
+  return el;
+}
+
+function posRow(p) {
+  const tr = document.createElement('tr');
+  if (p.incomplete) {
+    tr.classList.add('incomplete');
+    tr.title = '⚠ Unvollständige Angaben – nicht in den Summen enthalten. Klick öffnet das Modul.';
+  } else {
+    tr.title = 'In Skool öffnen';
+  }
+  tr.addEventListener('click', () => openCircleModule(p.id));
+  return tr;
+}
+
+function renderCircleOpenTable(rows) {
+  const sec = document.getElementById('circleOpen');
+  const tbody = sec.querySelector('tbody');
+  tbody.innerHTML = '';
+  sec.hidden = rows.length === 0;
+  document.getElementById('circleOpenCount').textContent = String(rows.length);
+  for (const p of rows) {
+    const tr = posRow(p);
+    tr.append(
+      td(p.name, 'name'),
+      td(p.qty != null ? String(p.qty) : '–', 'num'),
+      td(p.totalBuyEur != null ? fmtEur(p.totalBuyEur) : '–', 'num'),
+      td(p.currentPrice != null ? fmtEur(p.currentPrice) : '–', 'num'),
+    );
+    const gv = td('–', 'num');
+    if (p.unrealizedEur != null) {
+      gv.textContent = fmtEur(p.unrealizedEur);
+      const cls = signClass(p.unrealizedEur);
+      if (cls) gv.classList.add(cls);
+      if (p.unrealizedPct != null) {
+        const pct = document.createElement('span');
+        pct.className = 'pct';
+        pct.textContent = (p.unrealizedPct > 0 ? '+' : '') + p.unrealizedPct.toLocaleString('de-DE') + ' %';
+        gv.appendChild(pct);
+      }
+    }
+    tr.appendChild(gv);
+    tbody.appendChild(tr);
+  }
+}
+
+function renderCircleClosedTable(rows) {
+  const sec = document.getElementById('circleClosed');
+  const tbody = sec.querySelector('tbody');
+  tbody.innerHTML = '';
+  sec.hidden = rows.length === 0;
+  document.getElementById('circleClosedCount').textContent = String(rows.length);
+  for (const p of rows) {
+    const tr = posRow(p);
+    tr.append(
+      td(p.name, 'name'),
+      td(p.totalBuyEur != null ? fmtEur(p.totalBuyEur) : '–', 'num'),
+    );
+    const er = td(p.ertragEur != null ? fmtEur(p.ertragEur) : '–', 'num');
+    const cls = p.ertragEur != null ? signClass(p.ertragEur) : '';
+    if (cls) er.classList.add(cls);
+    if (p.ertragPct != null) {
+      const pct = document.createElement('span');
+      pct.className = 'pct';
+      pct.textContent = (p.ertragPct > 0 ? '+' : '') + p.ertragPct.toLocaleString('de-DE') + ' %';
+      er.appendChild(pct);
+    }
+    tr.appendChild(er);
+    tr.appendChild(td(p.holdingDays != null ? p.holdingDays + ' T.' : '–', 'num'));
+    tbody.appendChild(tr);
+  }
+
+  // Summenzeile: Einsatz- und Ertrag-Summe (= realisierter Gewinn) sowie die
+  // Durchschnittsdauer — jeweils nur über die Positionen mit vorhandenem Wert.
+  const buys = rows.filter((p) => p.totalBuyEur != null).map((p) => p.totalBuyEur);
+  const gains = rows.filter((p) => p.ertragEur != null).map((p) => p.ertragEur);
+  const days = rows.filter((p) => p.holdingDays != null).map((p) => p.holdingDays);
+  const sum = (a) => a.reduce((x, y) => x + y, 0);
+
+  document.getElementById('closedSumBuy').textContent = buys.length ? fmtEur(sum(buys)) : '–';
+  const sumErtrag = document.getElementById('closedSumErtrag');
+  sumErtrag.classList.remove('pos', 'neg');
+  if (gains.length) {
+    const total = sum(gains);
+    sumErtrag.textContent = fmtEur(total);
+    const totalCls = signClass(total);
+    if (totalCls) sumErtrag.classList.add(totalCls);
+    const totalBuy = sum(buys);
+    if (totalBuy > 0) {
+      const pct = document.createElement('span');
+      pct.className = 'pct';
+      const pctVal = Math.round((total / totalBuy) * 10000) / 100;
+      pct.textContent = (pctVal > 0 ? '+' : '') + pctVal.toLocaleString('de-DE') + ' %';
+      sumErtrag.appendChild(pct);
+    }
+  } else {
+    sumErtrag.textContent = '–';
+  }
+  document.getElementById('closedAvgDays').textContent = days.length
+    ? '⌀ ' + (sum(days) / days.length).toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' T.'
+    : '–';
+}
+
+function renderCircleUnparseable(rows) {
+  const sec = document.getElementById('circleUnparseable');
+  const ul = sec.querySelector('ul');
+  ul.innerHTML = '';
+  sec.hidden = rows.length === 0;
+  for (const u of rows) {
+    const li = document.createElement('li');
+    li.title = 'In Skool öffnen';
+    const name = document.createElement('span');
+    name.className = 'chg-name';
+    name.textContent = u.title;
+    const detail = document.createElement('span');
+    detail.className = 'chg-detail';
+    detail.textContent = u.reason;
+    li.append(name, detail);
+    li.addEventListener('click', () => openCircleModule(u.id));
+    ul.appendChild(li);
+  }
+}
+
+function renderCircle() {
+  if (activeTab !== 'circle') return;
+  const meta = state.circleMeta || {};
+  const ok = !!(state.circle && state.circle.modules && meta.lastPollOk === true);
+
+  document.getElementById('circleJoin').href = CIRCLE_CONFIG.joinUrl;
+
+  if (!ok) {
+    // Gleiche Privacy-Regel wie bei der Ampel: ohne bestätigten Zugang keine
+    // zwischengespeicherten Bezahldaten anzeigen.
+    hideCircleBlocks();
+    if (meta.access === 'noAccess') {
+      document.getElementById('circleNoAccess').hidden = false;
+      setCircleStatus('Kein Zugang zum Circle-Kurs.', true);
+    } else if (meta.access === 'loggedOut') {
+      setCircleStatus('Eingeloggt? Melde dich bei skool.com an und öffne das Popup erneut.', true);
+    } else {
+      setCircleStatus('Abruf fehlgeschlagen' + (meta.lastError ? ': ' + meta.lastError : '') + '.', true);
+    }
+    return;
+  }
+
+  document.getElementById('circleNoAccess').hidden = true;
+  const pf = computePortfolio(state.circle.modules);
+
+  const setStat = (id, val, signed) => {
+    const el = document.getElementById(id);
+    el.textContent = fmtEur(val);
+    el.classList.remove('pos', 'neg');
+    if (signed) {
+      const cls = signClass(val);
+      if (cls) el.classList.add(cls);
+    }
+  };
+  setStat('cInvested', pf.investedCumulative);
+  setStat('cDeployed', pf.deployedOpen);
+  setStat('cRealized', pf.realized, true);
+  setStat('cUnrealized', pf.unrealizedTotal, true);
+
+  // Gegenprobe: die vom Autor selbst gepflegten Summen aus "Statistik aktuell".
+  const cc = document.getElementById('cCrosscheck');
+  if (pf.statistik) {
+    const parts = [];
+    if (pf.statistik.eingesetztesKapital != null) parts.push('eingesetzt ' + fmtEur(pf.statistik.eingesetztesKapital));
+    if (pf.statistik.zuwachs != null) parts.push('Zuwachs ' + fmtEur(pf.statistik.zuwachs));
+    cc.textContent = 'Autor-Statistik: ' + parts.join(' · ');
+    cc.hidden = parts.length === 0;
+  } else {
+    cc.hidden = true;
+  }
+  document.getElementById('circleSummary').hidden = false;
+
+  const open = pf.positions.filter((p) => p.status === 'open');
+  const closed = pf.positions.filter((p) => p.status === 'closed');
+  renderCircleClosedTable(closed); // steht im Popup vor den laufenden Positionen
+  renderCircleOpenTable(open);
+  renderCircleUnparseable(pf.unparseable);
+
+  setCircleStatus(
+    open.length + ' laufend · ' + closed.length + ' abgeschlossen · zuletzt ' + fmtTime(meta.lastPollAt),
+    false,
+  );
+}
+
+// Beim Öffnen des Circle-Tabs den Zugang frisch prüfen (und dabei nichts
+// Sensibles zeigen) — danach rendern.
+async function refreshCircle() {
+  hideCircleBlocks();
+  setCircleStatus('Prüfe Zugang…', false);
+  const r = await send({ type: 'circlePollNow' });
+  if (r) {
+    state.circle = r.circle;
+    state.circleMeta = r.circleMeta;
+  }
+  circleChecked = true;
+  renderCircle();
+}
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.getElementById('tab-ampel').hidden = tab !== 'ampel';
+  document.getElementById('tab-circle').hidden = tab !== 'circle';
+  document.getElementById('tabBtnAmpel').classList.toggle('active', tab === 'ampel');
+  document.getElementById('tabBtnCircle').classList.toggle('active', tab === 'circle');
+  document.getElementById('courseTitle').textContent =
+    tab === 'circle' ? CIRCLE_CONFIG.displayName : 'Börsenampel';
+  if (tab === 'ampel') {
+    renderStatus();
+  } else if (!circleChecked) {
+    refreshCircle();
+  } else {
+    renderCircle();
+  }
+}
+
+document.getElementById('tabBtnAmpel').addEventListener('click', () => switchTab('ampel'));
+document.getElementById('tabBtnCircle').addEventListener('click', () => switchTab('circle'));
+
+// Positions-Abschnitte auf-/zuklappen (Zustand hält für diese Popup-Öffnung,
+// wie bei den Ampel-Gruppen).
+document.getElementById('circleClosedToggle').addEventListener('click', () => {
+  document.getElementById('circleClosed').classList.toggle('collapsed');
+});
+document.getElementById('circleOpenToggle').addEventListener('click', () => {
+  document.getElementById('circleOpen').classList.toggle('collapsed');
+});
 
 // --- Init + Events ----------------------------------------------------------
 async function init() {
@@ -372,9 +649,13 @@ document.getElementById('pollNow').addEventListener('click', async (e) => {
   const btn = e.currentTarget;
   btn.disabled = true;
   btn.textContent = 'Prüfe…';
-  const r = await send({ type: 'pollNow' });
-  state = r;
-  renderAll();
+  if (activeTab === 'circle') {
+    await refreshCircle();
+  } else {
+    const r = await send({ type: 'pollNow' });
+    state = r;
+    renderAll();
+  }
   btn.disabled = false;
   btn.textContent = 'Jetzt prüfen';
 });
