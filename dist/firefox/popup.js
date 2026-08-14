@@ -476,19 +476,18 @@ function ekBaseOf(p) {
 }
 
 function openChartWindow(p, q) {
-  const params = new URLSearchParams({ symbol: q.symbol, name: p.name });
+  const chartParams = { symbol: q.symbol, name: p.name };
   const ek = ekBaseOf(p);
-  if (ek != null) params.set('buy', String(ek));
-  if (p.currentPrice != null) params.set('target', String(p.currentPrice));
+  if (ek != null) chartParams.buy = String(ek);
+  if (p.currentPrice != null) chartParams.target = String(p.currentPrice);
   // Kaufzeitpunkt mitgeben -> der Chart markiert "Kauf" auf der EK-Linie.
   const buyTs = p.buyDate != null ? parseGermanDate(p.buyDate) : null;
-  if (buyTs != null) params.set('buyTs', String(buyTs));
-  api.windows.create({
-    url: api.runtime.getURL('chart.html') + '?' + params.toString(),
-    type: 'popup',
-    width: 560,
-    height: 500, // Platz für 45°-Achsenbeschriftung + Auswahl-Leiste (Brush)
-  });
+  if (buyTs != null) chartParams.buyTs = String(buyTs);
+  // Das Fenster öffnet der WORKER, nicht das Popup: Fenster, die aus dem
+  // Action-Popup heraus entstehen, hängen (je nach Fenstermanager) am Popup
+  // und verschwinden mit ihm. Vom Worker geöffnet bleiben sie stehen, bis
+  // der Nutzer sie selbst schließt.
+  send({ type: 'openChart', params: chartParams });
 }
 
 // Spalten: Aktie | Stück | EK-Preis | Einsatz | Akt. Kurs (Yahoo, mit % zum EK)

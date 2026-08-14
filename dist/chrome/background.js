@@ -755,6 +755,25 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         sendResponse({ ok: true });
         break;
       }
+      case 'openChart': {
+        // Chart-Fenster aus dem Worker öffnen (unabhängig vom Popup-Lebenszyklus,
+        // siehe openChartWindow in popup.js). Nur eigene, bekannte Parameter
+        // übernehmen — keine fremden URLs.
+        const allowed = ['symbol', 'name', 'buy', 'target', 'buyTs'];
+        const qs = new URLSearchParams();
+        for (const k of allowed) {
+          const v = msg.params && msg.params[k];
+          if (typeof v === 'string' && v) qs.set(k, v);
+        }
+        await api.windows.create({
+          url: api.runtime.getURL('chart.html') + '?' + qs.toString(),
+          type: 'popup',
+          width: 560,
+          height: 500, // Platz für 45°-Achsenbeschriftung + Auswahl-Leiste (Brush)
+        });
+        sendResponse({ ok: true });
+        break;
+      }
       case 'circleQuotes': {
         sendResponse(await getCircleQuotes());
         break;
