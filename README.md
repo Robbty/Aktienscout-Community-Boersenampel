@@ -24,7 +24,7 @@ Ein Browser-Add-on, das die **Börsenampel** der [Aktienscout-Community](https:/
 
 ### Der Circle-Tab in Bildern
 
-Auswertung mit den vier Summen, dazu die Positions-Listen (auf-/zuklappbar) – laufende Positionen mit Stück, Einkaufspreis, Einsatz, Kursziel (der vom Autor geplante Verkaufskurs, mit Potenzial in %) und Tagen seit Kauf (die Spalten „Akt. Kurs" und Chart-Knopf sind für die kommende Kursanbindung vorbereitet), abgeschlossene mit Ertrag, Prozent, Haltedauer und Summenzeile:
+Auswertung mit den vier Summen, dazu die Positions-Listen (auf-/zuklappbar) – laufende Positionen mit Stück, Einkaufspreis, Einsatz, **aktuellem Börsenkurs** (Yahoo Finance, mit % zum Einkauf), Kursziel (der vom Autor geplante Verkaufskurs, mit Potenzial in %), Tagen seit Kauf und 📈-Knopf für das Chart-Fenster; abgeschlossene mit Ertrag, Prozent, Haltedauer und Summenzeile. *(Die Screenshots zeigen noch eine ältere Version mit schmalerem Fenster.)*
 
 <p align="center">
   <img src="docs/screenshot-circle-uebersicht.png" alt="Circle: Auswertung" width="270">
@@ -65,13 +65,13 @@ Anschließend auf das Ampel-Symbol klicken und **„Jetzt prüfen"** – der ers
 
 ## Wie es funktioniert (kurz)
 
-Skool ist eine Next.js-App; die komplette Ampel-Struktur steckt als sauberes JSON in der Seite (`__NEXT_DATA__`). Das Add-on liest dieses JSON – einmal pro Abruf im Hintergrund (mit deinen Login-Cookies) und zusätzlich bei jedem echten Seitenbesuch über ein Content-Script. Jede Aktie trägt einen `updatedAt`-Zeitstempel; daraus ergeben sich Wechsel/Neu/Bearbeitet/Entfernt durch Vergleich aufeinanderfolgender Lesungen. Der Circle-Tab liest auf demselben Weg die Engagement-Module (Kauf, Verkauf, Stückzahl, Ertrag stehen in den Modul-Texten), holt geänderte Module gezielt einzeln nach und rechnet die Summen lokal zusammen. Alles wird nur lokal in `storage.local` gehalten.
+Skool ist eine Next.js-App; die komplette Ampel-Struktur steckt als sauberes JSON in der Seite (`__NEXT_DATA__`). Das Add-on liest dieses JSON – einmal pro Abruf im Hintergrund (mit deinen Login-Cookies) und zusätzlich bei jedem echten Seitenbesuch über ein Content-Script. Jede Aktie trägt einen `updatedAt`-Zeitstempel; daraus ergeben sich Wechsel/Neu/Bearbeitet/Entfernt durch Vergleich aufeinanderfolgender Lesungen. Der Analyse-Text einer Aktie wird erst beim Klick nachgeladen (und gecacht, bis sich die Aktie ändert). Der Circle-Tab liest auf demselben Weg die Engagement-Module (Kauf, Verkauf, Stückzahl, Ertrag stehen in den Modul-Texten), holt geänderte Module gezielt einzeln nach und rechnet die Summen lokal zusammen. Die aktuellen Börsenkurse kommen von der (inoffiziellen, kostenlosen) Yahoo-Finance-API: je Position wird einmalig das Yahoo-Symbol über ISIN/WKN/Name gesucht, Kurse werden ein paar Minuten gecacht und Fremdwährungen mit dem FX-Kurs derselben API in Euro umgerechnet – fällt Yahoo aus, zeigt die Spalte einfach „–". Alles wird nur lokal in `storage.local` gehalten.
 
 ## Für Entwickler
 
 - **Quellcode:** alles in `extension/` (cross-browser geschrieben, `api = browser || chrome`).
 - **Build:** `node build.mjs` erzeugt `dist/chrome` und `dist/firefox` aus `extension/` (nur das Manifest unterscheidet sich je Ziel). Zusätzlich entsteht `dist-test/` (git-ignoriert): eine parallel ladbare Test-Variante, bei der beide Beitritts-Hinweise simuliert werden – siehe Schalter in `extension/lib/debug.js`. Keine Abhängigkeiten, kein Bundler.
-- **Tests:** `node test/lifecycle.test.mjs` prüft die Änderungserkennung über den ganzen Ablauf (Login → Bestätigen → Logout → Änderungen → Login) inkl. Logbuch und Begrenzung; `node test/circle.test.mjs` prüft Titel-/Text-Parser und Portfolio-Rechnung des Circle-Tabs gegen alle live gesehenen Schreibweisen.
+- **Tests:** `node test/lifecycle.test.mjs` prüft die Änderungserkennung über den ganzen Ablauf (Login → Bestätigen → Logout → Änderungen → Login) inkl. Logbuch und Begrenzung; `node test/circle.test.mjs` prüft Titel-/Text-Parser und Portfolio-Rechnung des Circle-Tabs gegen alle live gesehenen Schreibweisen; `node test/quotes.test.mjs` prüft die Yahoo-Parser (Chart, Symbolsuche, €-Umrechnung).
 - **Syntax-Check:** `node --check extension/<datei>.js`.
 - Mehr zu Architektur und Konventionen: siehe [`CLAUDE.md`](CLAUDE.md).
 
