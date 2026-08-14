@@ -499,6 +499,10 @@ function renderCircleOpenTable(rows) {
   tbody.innerHTML = '';
   sec.hidden = rows.length === 0;
   document.getElementById('circleOpenCount').textContent = String(rows.length);
+  // Summenzeile: Einsatz, aktueller Gesamtwert (nur Positionen mit Kurs) und
+  // Durchschnitts-Haltedauer — unvollständige Positionen bleiben, wie überall,
+  // außen vor.
+  const sums = { buy: 0, buyAny: false, buyMatched: 0, cur: 0, curCount: 0, days: [] };
   for (const p of rows) {
     const tr = posRow(p);
     tr.append(
@@ -543,6 +547,18 @@ function renderCircleOpenTable(rows) {
     if (p.buyDate) tage.title = 'Kauf am ' + p.buyDate;
     tr.appendChild(tage);
 
+    if (!p.incomplete) {
+      if (p.totalBuyEur != null) { sums.buy += p.totalBuyEur; sums.buyAny = true; }
+      if (daysHeld != null) sums.days.push(daysHeld);
+      if (q && q.priceEur != null && p.totalBuyEur != null) {
+        // Gesamtwert heute: mit Stückzahl je Aktie, sonst Titeleinheit
+        // (Heidelberg/Accor-Format: Kaufpreis und Kurs teilen die Einheit).
+        sums.cur += p.qty != null ? p.qty * q.priceEur : q.priceEur;
+        sums.buyMatched += p.totalBuyEur;
+        sums.curCount++;
+      }
+    }
+
     const chartCell = td('', 'chart-col');
     const chartBtn = document.createElement('button');
     chartBtn.className = 'chart-btn';
@@ -563,6 +579,37 @@ function renderCircleOpenTable(rows) {
 
     tbody.appendChild(tr);
   }
+
+  // Summenzeile füllen.
+  document.getElementById('openSumBuy').textContent = sums.buyAny ? fmtEur(sums.buy) : '–';
+
+  const sumCur = document.getElementById('openSumCur');
+  sumCur.classList.remove('pos', 'neg');
+  sumCur.textContent = '';
+  sumCur.title = '';
+  if (circleQuotes === null) {
+    sumCur.textContent = '…';
+  } else if (sums.curCount > 0) {
+    sumCur.textContent = fmtEur(Math.round(sums.cur * 100) / 100);
+    if (sums.buyMatched > 0) {
+      const pctVal = Math.round((sums.cur / sums.buyMatched - 1) * 10000) / 100;
+      const cls = signClass(pctVal);
+      if (cls) sumCur.classList.add(cls);
+      appendPct(sumCur, pctVal);
+    }
+    sumCur.title =
+      sums.curCount < rows.length
+        ? 'Heutiger Gesamtwert der ' + sums.curCount + ' von ' + rows.length +
+          ' Positionen mit Kurs (Einsatz dieser Positionen: ' + fmtEur(sums.buyMatched) + ')'
+        : 'Heutiger Gesamtwert aller laufenden Positionen';
+  } else {
+    sumCur.textContent = '–';
+  }
+
+  document.getElementById('openAvgDays').textContent = sums.days.length
+    ? '⌀ ' + (sums.days.reduce((a, b) => a + b, 0) / sums.days.length)
+        .toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' T.'
+    : '–';
 }
 
 function renderCircleClosedTable(rows) {

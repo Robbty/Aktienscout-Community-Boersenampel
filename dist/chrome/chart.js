@@ -46,6 +46,8 @@ let sel = null;        // { t0, t1 } in Sekunden
 let activePreset = null;
 let loadSeq = 0;       // Race-Schutz: nur die jüngste Antwort zählt
 let loading = false;
+let hoverIndex = null; // Datenpunkt unter der Maus (Tooltip)
+let layout = null;     // Plot-Geometrie des letzten draw() für die Maus-Zuordnung
 
 const fmtNum = (n, digits = 2) =>
   Number(n).toLocaleString('de-DE', { minimumFractionDigits: digits, maximumFractionDigits: digits });
@@ -99,6 +101,7 @@ function draw() {
   ctx.clearRect(0, 0, w, h);
 
   if (!series) {
+    layout = null;
     ctx.fillStyle = '#5f6368';
     ctx.font = '13px system-ui, sans-serif';
     ctx.textAlign = 'center';
@@ -126,6 +129,7 @@ function draw() {
   const plotH = h - M.top - M.bottom;
   const x = (i) => M.left + (plotW * i) / Math.max(1, timestamps.length - 1);
   const y = (v) => M.top + plotH * (1 - (v - min) / (max - min));
+  layout = { M, plotW, plotH, len: timestamps.length }; // für die Maus-Zuordnung
 
   // Horizontale Gitterlinien + Werte-Beschriftung.
   ctx.font = '11px system-ui, sans-serif';
@@ -214,14 +218,20 @@ function draw() {
   ctx.fillStyle = '#1a73e8';
   ctx.fill();
 
-  // Kauf-Markierung: Punkt samt "Kauf"-Label auf der EK-Linie am Kaufzeitpunkt
-  // (nur wenn der Kauf im sichtbaren Zeitfenster liegt).
+  // Kauf-Markierung: Punkt samt "Kauf"-Label auf der EK-Linie am Kaufzeitpunkt.
+  // Das Kaufdatum ist Mitternacht -> auf den NÄCHSTLIEGENDEN Datenpunkt legen
+  // (die erste Kerze des Kauftags beginnt erst zur Börsenöffnung; nach einem
+  // Wochenende läge Mitternacht sonst ganz vor den Daten und der Punkt fiele weg).
   if (buyLine != null && BUY_SEC != null) {
-    if (BUY_SEC >= timestamps[0] && BUY_SEC <= timestamps[timestamps.length - 1]) {
+    const inWindow =
+      BUY_SEC <= timestamps[timestamps.length - 1] &&
+      (BUY_SEC >= timestamps[0] || (sel && BUY_SEC >= sel.t0));
+    if (inWindow) {
       let bi = 0;
+      let bd = Infinity;
       for (let i = 0; i < timestamps.length; i++) {
-        if (timestamps[i] <= BUY_SEC) bi = i;
-        else break;
+        const d = Math.abs(timestamps[i] - BUY_SEC);
+        if (d < bd) { bd = d; bi = i; }
       }
       ctx.beginPath();
       ctx.arc(x(bi), y(buyLine), 4, 0, 2 * Math.PI);
@@ -236,6 +246,62 @@ function draw() {
       ctx.textBaseline = 'bottom';
       ctx.fillText('Kauf', x(bi), y(buyLine) - 6);
     }
+  }
+
+  // Hover: Fadenkreuz-Linie, Punkt und Tooltip mit Zeitpunkt + Kurs.
+  if (hoverIndex != null && hoverIndex >= 0 && hoverIndex < closes.length) {
+    const hi = hoverIndex;
+    const hx = x(hi);
+    const hy = y(closes[hi]);
+
+    ctx.save();
+    ctx.strokeStyle = '#c6c6c6';
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(hx, M.top);
+    ctx.lineTo(hx, M.top + plotH);
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.beginPath();
+    ctx.arc(hx, hy, 4, 0, 2 * Math.PI);
+    ctx.fillStyle = '#1a73e8';
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = '#ffffff';
+    ctx.stroke();
+
+    const d = new Date(timestamps[hi] * 1000);
+    const dateStr = d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
+    const line1 = spanSec <= 10 * DAY
+      ? dateStr + ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+      : dateStr;
+    const line2 = fmtNum(closes[hi]) + ' ' + ((quoteMeta && quoteMeta.currency) || '');
+
+    ctx.font = '11px system-ui, sans-serif';
+    const tw = Math.max(ctx.measureText(line1).width, ctx.measureText(line2).width);
+    const bw = tw + 16;
+    const bh = 34;
+    // Box neben dem Punkt, an den Rändern zur anderen Seite kippen.
+    let bx = hx + 10;
+    if (bx + bw > w - M.right) bx = hx - 10 - bw;
+    let by = hy - bh - 8;
+    if (by < M.top) by = hy + 8;
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+    ctx.strokeStyle = '#e0e0e0';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.roundRect(bx, by, bw, bh, 6);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = '#5f6368';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(line1, bx + 8, by + 11);
+    ctx.fillStyle = '#202124';
+    ctx.font = '600 11px system-ui, sans-serif';
+    ctx.fillText(line2, bx + 8, by + 24);
   }
 }
 
@@ -320,7 +386,11 @@ function applyPreset(key) {
   if (key === 'kauf') {
     if (BUY_SEC == null) return;
     const span = now - BUY_SEC;
-    setSel(BUY_SEC - Math.max(DAY, span * 0.04), now, 'kauf'); // Kauf fast ganz links
+    // Mindestens 3 Tage Vorlauf: das Kaufdatum ist Mitternacht, die erste
+    // Kerze des Kauftags liegt später — und vor einem Montagskauf liegt ein
+    // handelsfreies Wochenende. So bleibt der Kauf-Punkt sicher im Bild,
+    // fast ganz links.
+    setSel(BUY_SEC - Math.max(3 * DAY, span * 0.05), now, 'kauf');
   } else if (PRESETS[key]) {
     setSel(now - PRESETS[key], now, key);
   }
@@ -397,6 +467,7 @@ async function loadDetail() {
   const seq = ++loadSeq;
   loading = true;
   series = null;
+  hoverIndex = null;
   draw();
 
   try {
@@ -471,6 +542,30 @@ window.addEventListener('resize', () => {
   draw();
   drawBrush();
   updateBrushSel();
+});
+
+// Tooltip: Maus über der Kurve -> nächstliegenden Datenpunkt markieren.
+canvas.addEventListener('mousemove', (e) => {
+  if (!series || !layout) return;
+  const r = canvas.getBoundingClientRect();
+  const mx = e.clientX - r.left;
+  const my = e.clientY - r.top;
+  const { M, plotW, plotH, len } = layout;
+  let next = null;
+  if (mx >= M.left && mx <= M.left + plotW && my >= M.top && my <= M.top + plotH) {
+    next = Math.round(((mx - M.left) / plotW) * (len - 1));
+    next = Math.max(0, Math.min(len - 1, next));
+  }
+  if (next !== hoverIndex) {
+    hoverIndex = next;
+    draw();
+  }
+});
+canvas.addEventListener('mouseleave', () => {
+  if (hoverIndex != null) {
+    hoverIndex = null;
+    draw();
+  }
 });
 
 // Ohne Kaufdatum ist "Seit Kauf" nicht anwendbar.
