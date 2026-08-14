@@ -16,7 +16,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 // die im vm-Kontext erzeugten Arrays fremde Prototypen und deepStrictEqual scheitert.
 runInThisContext(readFileSync(join(here, '..', 'extension', 'lib', 'circle.js'), 'utf8'));
 const {
-  CIRCLE_CONFIG, parseGermanNumber, parseModuleTitle, proseMirrorText,
+  CIRCLE_CONFIG, parseGermanNumber, parseGermanDate, parseModuleTitle, proseMirrorText,
   buildCircleIndex, classifyCircleAccess, parseTradeBody, parseStatistik,
   computePortfolio, selectStaleModules, diffCircleModules,
 } = globalThis;
@@ -38,6 +38,14 @@ assert.equal(parseGermanNumber('3.39'), 3.39, 'Dezimal-PUNKT des Autors ("zu 3.3
 assert.equal(parseGermanNumber('1.234'), 1234, 'drei Nachpunktstellen bleiben Tausendertrenner');
 assert.equal(parseGermanNumber('785,'), 785, 'abgeschnittene Kommastellen ("785, €")');
 assert.equal(parseGermanNumber('kein Betrag'), null);
+
+// --- Deutsches Datum (für die Tage-Spalte der laufenden Positionen) --------------
+assert.equal(parseGermanDate('03.08.2026'), new Date(2026, 7, 3).getTime());
+assert.equal(parseGermanDate('3.8.26'), new Date(2026, 7, 3).getTime(), 'zweistelliges Jahr -> 20xx');
+assert.equal(parseGermanDate(' 15.01.2025 '), new Date(2025, 0, 15).getTime(), 'Leerraum toleriert');
+assert.equal(parseGermanDate('31.02.2026'), null, 'Datums-Überlauf ist ungültig');
+assert.equal(parseGermanDate('2026-08-03'), null, 'nur deutsche Schreibweise');
+assert.equal(parseGermanDate(null), null);
 
 // --- Titel-Parser: alle live gesehenen Varianten ---------------------------------
 const openCases = [

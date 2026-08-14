@@ -8,8 +8,11 @@
  * Datenlage (verifiziert): Die Beträge stehen NUR im Rich-Text-Body der Module.
  * Der Body ist im Kursbaum ausschließlich für das per ?md=<id> ausgewählte Modul
  * gefüllt (children[i].course.metadata.desc, Format "[v2][{ProseMirror-JSON}]").
- * Titel-Konvention des Autors: "Name [57,75 € ]" = laufende Position mit von
- * Hand gepflegtem aktuellem Kurs, "Name [8 Tage]" = verkauft nach 8 Tagen.
+ * Titel-Konvention des Autors: "Name [57,75 € ]" = laufende Position; der
+ * eingeklammerte Preis ist der geplante VERKAUFSKURS (Kursziel, meist +10 %
+ * auf den Einkauf) — NICHT der aktuelle Börsenkurs. "Name [8 Tage]" =
+ * verkauft nach 8 Tagen. (Feldname currentPrice bleibt aus Kompatibilität
+ * mit gespeicherten Daten erhalten, gemeint ist das Kursziel.)
  */
 
 // --- Konfiguration der überwachten Skool-Quelle -----------------------------
@@ -58,10 +61,28 @@ function parseGermanNumber(s) {
   return isFinite(n) ? n : null;
 }
 
+// Deutsches Datum "3.8.26" / "03.08.2026" -> Timestamp (lokale Mitternacht),
+// sonst null. Zweistellige Jahre werden als 20xx gelesen.
+function parseGermanDate(s) {
+  if (typeof s !== 'string') return null;
+  const m = s.trim().match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/);
+  if (!m) return null;
+  const day = Number(m[1]);
+  const month = Number(m[2]);
+  let year = Number(m[3]);
+  if (m[3].length <= 2) year += 2000;
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const d = new Date(year, month - 1, day);
+  // Überlauf abfangen (31.02. -> 3. März): dann war das Datum ungültig.
+  if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return null;
+  return d.getTime();
+}
+
 // --- Modultitel deuten --------------------------------------------------------
 // Die Klammern des Autors sind unsauber ("(177,63€ ]", "[10 Tage)"), deshalb
 // werden [ ( und ] ) austauschbar akzeptiert.
 // Ergebnis: { name, kind: 'open'|'closed'|'meta'|'plain', currentPrice?, holdingDays? }
+// currentPrice = das Kursziel aus dem Titel (siehe Kopfkommentar).
 function parseModuleTitle(title) {
   const t = String(title || '').trim();
   if (/statistik/i.test(t)) return { name: t, kind: 'meta' };
@@ -258,7 +279,7 @@ function computePortfolio(modules) {
     investedCumulative: 0, // Σ Kaufsummen ALLER auswertbaren Engagements
     deployedOpen: 0,       // Σ Kaufsummen der noch laufenden Positionen
     realized: 0,           // Σ Ertrag der abgeschlossenen Verkäufe
-    unrealizedTotal: 0,    // Σ unrealisierte G/V der laufenden (vollständigen)
+    unrealizedTotal: 0,    // Σ Potenzial bis Kursziel der laufenden (vollständigen)
     positions: [],
     unparseable: [],
     statistik: null,
@@ -439,6 +460,7 @@ if (typeof globalThis !== 'undefined') {
   globalThis.circleModuleUrl = circleModuleUrl;
   globalThis.circleDataUrl = circleDataUrl;
   globalThis.parseGermanNumber = parseGermanNumber;
+  globalThis.parseGermanDate = parseGermanDate;
   globalThis.parseModuleTitle = parseModuleTitle;
   globalThis.proseMirrorText = proseMirrorText;
   globalThis.buildCircleIndex = buildCircleIndex;

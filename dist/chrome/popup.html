@@ -69,7 +69,7 @@
         <div class="stat"><span class="stat-label">Investiert (kumuliert)</span><span class="stat-value" id="cInvested"></span></div>
         <div class="stat"><span class="stat-label">Aktuell im Markt</span><span class="stat-value" id="cDeployed"></span></div>
         <div class="stat"><span class="stat-label">Realisierte Gewinne</span><span class="stat-value" id="cRealized"></span></div>
-        <div class="stat"><span class="stat-label">Unrealisiert (offen)</span><span class="stat-value" id="cUnrealized"></span></div>
+        <div class="stat"><span class="stat-label" title="Summe der offenen Positionen, wenn alle ihr Kursziel erreichen">Potenzial (Kursziel)</span><span class="stat-value" id="cUnrealized"></span></div>
       </div>
       <div class="crosscheck" id="cCrosscheck" hidden></div>
     </section>
@@ -100,7 +100,16 @@
         <span class="chev">▾</span>
       </div>
       <table class="pos-table">
-        <thead><tr><th>Aktie</th><th class="num">Stück</th><th class="num">Einsatz</th><th class="num">Kurs</th><th class="num">G/V</th></tr></thead>
+        <thead><tr>
+          <th>Aktie</th>
+          <th class="num">Stück</th>
+          <th class="num" title="Einkaufspreis je Aktie">EK-Preis</th>
+          <th class="num">Einsatz</th>
+          <th class="num" title="Aktueller Börsenkurs – Kursquelle folgt in Phase 3">Akt. Kurs</th>
+          <th class="num" title="Geplanter Verkaufskurs des Autors (aus dem Modultitel)">Kursziel</th>
+          <th class="num" title="Tage seit Kauf">Tage</th>
+          <th class="chart-col" title="Kurs-Chart – folgt in Phase 3"></th>
+        </tr></thead>
         <tbody></tbody>
       </table>
     </section>

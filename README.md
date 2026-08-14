@@ -16,13 +16,13 @@ Ein Browser-Add-on, das die **Börsenampel** der [Aktienscout-Community](https:/
 - 🆕 **„Seit deinem letzten Besuch"** – neue, gewechselte, entfernte Aktien auf einen Blick.
 - 🕒 **Statuswechsel-Logbuch** – eine eigene Historie der Ampel-Wechsel der letzten *X* Tage (die Skool-Seite selbst hat keine Historie).
 - 🔔 **Benachrichtigung + blinkendes Symbol**, wenn sich etwas tut.
-- 💼 **Circle-Tab** – wertet zusätzlich die Aktienengagements der Community [„Der Circle zur ersten Million"](https://www.skool.com/der-circle-zur-ersten-million-6426) aus: investiertes Kapital (gesamt + aktuell im Markt), realisierte Gewinne und die unrealisierten Gewinne/Verluste der laufenden Positionen. Braucht nur die Mitgliedschaft **dort** – unabhängig von der Aktienscout-Mitgliedschaft; ohne Zugang zeigt der Tab, wie man beitreten kann.
+- 💼 **Circle-Tab** – wertet zusätzlich die Aktienengagements der Community [„Der Circle zur ersten Million"](https://www.skool.com/der-circle-zur-ersten-million-6426) aus: investiertes Kapital (gesamt + aktuell im Markt), realisierte Gewinne und das Potenzial der laufenden Positionen bis zum jeweiligen Kursziel. Braucht nur die Mitgliedschaft **dort** – unabhängig von der Aktienscout-Mitgliedschaft; ohne Zugang zeigt der Tab, wie man beitreten kann.
 - 🟡 **Circle-Meldungen** – bei einem neuen Kauf oder Verkauf gibt es eine Benachrichtigung, ein Logbuch-Eintrag („Käufe & Verkäufe") und einen **goldenen Punkt oben links** auf dem Symbol. So bleiben die Zeichen getrennt und gleichzeitig sichtbar: rote Zahl unten rechts = Ampel-Änderungen, goldener Punkt oben links = Circle-Kauf/-Verkauf, beides zusammen = beides. Der Punkt verschwindet, sobald du den Circle-Tab öffnest.
 - 🔒 **Privat** – liest nur deine eigene, eingeloggte Skool-Sitzung; nichts wird irgendwohin gesendet.
 
 ### Der Circle-Tab in Bildern
 
-Auswertung mit den vier Summen, dazu die Positions-Listen (auf-/zuklappbar) – laufende Positionen mit Kurs und unrealisiertem Gewinn/Verlust, abgeschlossene mit Ertrag, Prozent, Haltedauer und Summenzeile:
+Auswertung mit den vier Summen, dazu die Positions-Listen (auf-/zuklappbar) – laufende Positionen mit Stück, Einkaufspreis, Einsatz, Kursziel (der vom Autor geplante Verkaufskurs, mit Potenzial in %) und Tagen seit Kauf (die Spalten „Akt. Kurs" und Chart-Knopf sind für die kommende Kursanbindung vorbereitet), abgeschlossene mit Ertrag, Prozent, Haltedauer und Summenzeile:
 
 <p align="center">
   <img src="docs/screenshot-circle-uebersicht.png" alt="Circle: Auswertung" width="270">

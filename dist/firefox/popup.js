@@ -399,6 +399,18 @@ function posRow(p) {
   return tr;
 }
 
+// Prozent-Unterzeile ("+10,3 %") an eine Zelle hängen.
+function appendPct(cell, pctVal) {
+  const pct = document.createElement('span');
+  pct.className = 'pct';
+  pct.textContent = (pctVal > 0 ? '+' : '') + pctVal.toLocaleString('de-DE') + ' %';
+  cell.appendChild(pct);
+}
+
+// Spalten: Aktie | Stück | EK-Preis | Einsatz | Akt. Kurs | Kursziel | Tage | Chart.
+// "Akt. Kurs" (echter Börsenkurs, mit % zum EK) und der Chart-Knopf sind
+// Platzhalter, bis in Phase 3 eine Kurs-API angebunden ist. Das Kursziel ist
+// der vom Autor im Modultitel gepflegte geplante Verkaufskurs.
 function renderCircleOpenTable(rows) {
   const sec = document.getElementById('circleOpen');
   const tbody = sec.querySelector('tbody');
@@ -410,22 +422,36 @@ function renderCircleOpenTable(rows) {
     tr.append(
       td(p.name, 'name'),
       td(p.qty != null ? String(p.qty) : '–', 'num'),
+      td(p.buyPriceEur != null ? fmtEur(p.buyPriceEur) : '–', 'num'),
       td(p.totalBuyEur != null ? fmtEur(p.totalBuyEur) : '–', 'num'),
-      td(p.currentPrice != null ? fmtEur(p.currentPrice) : '–', 'num'),
+      td('–', 'num'), // Akt. Kurs: Kursquelle folgt in Phase 3
     );
-    const gv = td('–', 'num');
-    if (p.unrealizedEur != null) {
-      gv.textContent = fmtEur(p.unrealizedEur);
-      const cls = signClass(p.unrealizedEur);
-      if (cls) gv.classList.add(cls);
-      if (p.unrealizedPct != null) {
-        const pct = document.createElement('span');
-        pct.className = 'pct';
-        pct.textContent = (p.unrealizedPct > 0 ? '+' : '') + p.unrealizedPct.toLocaleString('de-DE') + ' %';
-        gv.appendChild(pct);
-      }
+
+    // Kursziel, darunter das Potenzial in % bezogen auf den Einsatz.
+    const ziel = td(p.currentPrice != null ? fmtEur(p.currentPrice) : '–', 'num');
+    if (p.unrealizedPct != null) {
+      const cls = signClass(p.unrealizedPct);
+      if (cls) ziel.classList.add(cls);
+      appendPct(ziel, p.unrealizedPct);
     }
-    tr.appendChild(gv);
+    tr.appendChild(ziel);
+
+    const buyTs = p.buyDate != null ? parseGermanDate(p.buyDate) : null;
+    const daysHeld = buyTs != null ? Math.max(0, Math.floor((Date.now() - buyTs) / 86400000)) : null;
+    const tage = td(daysHeld != null ? daysHeld + ' T.' : '–', 'num');
+    if (p.buyDate) tage.title = 'Kauf am ' + p.buyDate;
+    tr.appendChild(tage);
+
+    const chartCell = td('', 'chart-col');
+    const chartBtn = document.createElement('button');
+    chartBtn.className = 'chart-btn';
+    chartBtn.type = 'button';
+    chartBtn.textContent = '📈';
+    chartBtn.disabled = true;
+    chartBtn.title = 'Kurs-Chart – folgt in Phase 3';
+    chartCell.appendChild(chartBtn);
+    tr.appendChild(chartCell);
+
     tbody.appendChild(tr);
   }
 }

@@ -25,3 +25,6 @@ dist-test/
 *.zip
 *.crx
 *.pem
+
+# Lokale Planungs-Notizen (Phase 2/3, Kurs-APIs, Fenster-/Speicher-Optionen)
+NOTIZEN-PLANUNG.md

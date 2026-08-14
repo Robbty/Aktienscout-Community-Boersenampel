@@ -12,7 +12,10 @@
 * { box-sizing: border-box; }
 
 body {
-  width: 380px;
+  /* Breite ausgelegt auf die Spalten der laufenden Positionen:
+     Aktie | Stück | EK-Preis | Einsatz | Akt. Kurs | Kursziel | Tage | Chart.
+     (Chrome/Firefox erlauben für Action-Popups max. ~800px.) */
+  width: 640px;
   max-height: 600px;
   margin: 0;
   font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -168,7 +171,14 @@ footer { border-top: 1px solid var(--line); padding: 8px 12px; display: flex; fl
 .pos-table td { padding: 4px; border-bottom: 1px solid var(--hover); vertical-align: top; }
 .pos-table tbody tr { cursor: pointer; }
 .pos-table tbody tr:hover { background: var(--hover); }
-.pos-table td.name { overflow: hidden; text-overflow: ellipsis; max-width: 130px; white-space: nowrap; }
+.pos-table td.name { overflow: hidden; text-overflow: ellipsis; max-width: 170px; white-space: nowrap; }
+/* Chart-Knopf je Position (Platzhalter, Kurs-Chart kommt in Phase 3) */
+.pos-table .chart-col { width: 28px; }
+.chart-btn {
+  border: 1px solid var(--line); background: none; border-radius: 6px;
+  padding: 1px 5px; font-size: 12px; cursor: pointer; line-height: 1.4;
+}
+.chart-btn:disabled { opacity: .4; cursor: default; }
 .pos-table tr.incomplete { opacity: .55; }
 .pos-table tfoot td { border-top: 1px solid var(--line); border-bottom: none; font-weight: 700; }
 /* Positions-Abschnitte auf-/zuklappbar (gleiches Muster wie "Zuletzt bearbeitet") */
