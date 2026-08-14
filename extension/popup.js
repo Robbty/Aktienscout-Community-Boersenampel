@@ -13,6 +13,10 @@ let circleChecked = false; // Zugang pro Popup-Öffnung nur einmal frisch prüfe
 
 const api = globalThis.browser || globalThis.chrome;
 
+// Offene Verbindung zum Worker: ihre Trennung meldet ihm, dass das Popup zu
+// ist -> er holt dann die im Hintergrund geöffneten Chart-Fenster nach vorn.
+api.runtime.connect({ name: 'popup' });
+
 function send(msg) {
   // Promise-Form funktioniert in Chrome (MV3) und Firefox gleichermaßen.
   return api.runtime.sendMessage(msg);

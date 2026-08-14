@@ -726,6 +726,28 @@ api.notifications.onClicked.addListener((id) => {
   if (id.startsWith('circle-')) api.tabs.create({ url: CIRCLE_CONFIG.classroomUrl });
 });
 
+// --- Chart-Fenster nach dem Popup-Schluss nach vorn holen ---------------------
+// Die Browser-API kann Fenster nicht "nach vorn ohne Fokus" heben. Deshalb:
+// Charts öffnen unfokussiert (das Popup soll ja offen bleiben), ihre IDs
+// sammeln — und sobald das Popup sich schließt (sein Port trennt sich), alle
+// gesammelten Fenster fokussiert nach vorn holen. So sieht der Nutzer sie,
+// ohne dass sie ihm vorher das Popup zugemacht haben.
+let pendingChartWindows = [];
+
+api.runtime.onConnect.addListener((port) => {
+  if (port.name !== 'popup') return;
+  pendingChartWindows = [];
+  port.onDisconnect.addListener(async () => {
+    const ids = pendingChartWindows;
+    pendingChartWindows = [];
+    for (const id of ids) {
+      try {
+        await api.windows.update(id, { focused: true });
+      } catch (e) { /* Fenster wurde inzwischen von Hand geschlossen */ }
+    }
+  });
+});
+
 // --- Nachrichten von Popup / Content-Script ---------------------------------
 api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   (async () => {
@@ -756,6 +778,7 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         break;
       }
       case 'openChart': {
+        // (IDs der erzeugten Fenster landen in pendingChartWindows, s. u.)
         // Chart-Fenster aus dem Worker öffnen (unabhängig vom Popup-Lebenszyklus,
         // siehe openChartWindow in popup.js). Nur eigene, bekannte Parameter
         // übernehmen — keine fremden URLs.
@@ -775,13 +798,15 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           width: 560,
           height: 600, // inkl. Browserleiste; Chart-Layout passt sich an
         };
+        let win;
         try {
           // Ohne Fokus öffnen -> das Action-Popup bleibt offen und weitere
           // Charts lassen sich direkt nacheinander aufklappen.
-          await api.windows.create({ ...createData, focused: false });
+          win = await api.windows.create({ ...createData, focused: false });
         } catch (e) {
-          await api.windows.create(createData); // Firefox kennt focused:false nicht
+          win = await api.windows.create(createData); // Firefox kennt focused:false nicht
         }
+        if (win && win.id != null) pendingChartWindows.push(win.id);
         sendResponse({ ok: true });
         break;
       }
