@@ -168,15 +168,17 @@ async function fetchYahooQuote(symbol) {
   }
 }
 
+// undefined = Abruf gescheitert (Netz/Drossel — Wiederholung sinnvoll);
+// Objekt = Antwort da (auch wenn sie keine Treffer enthält).
 async function fetchYahooSearch(query) {
   try {
     const res = await fetch(yahooSearchUrl(query), {
       headers: { 'Accept': 'application/json' },
     });
-    if (!res.ok) return null;
+    if (!res.ok) return undefined;
     return await res.json();
   } catch (e) {
-    return null;
+    return undefined;
   }
 }
 

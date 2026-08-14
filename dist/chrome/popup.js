@@ -544,6 +544,9 @@ function renderCircleOpenTable(rows) {
     const q = circleQuotes ? circleQuotes[p.id] : null;
     const ek = ekBaseOf(p);
     const kurs = td(circleQuotes === null ? '…' : '–', 'num');
+    if (circleQuotes !== null && !q) {
+      kurs.title = 'Kein (plausibles) Yahoo-Symbol gefunden – wird beim nächsten Öffnen automatisch erneut versucht.';
+    }
     if (q && q.priceEur != null) {
       kurs.textContent = fmtEur(q.priceEur);
       kurs.title =

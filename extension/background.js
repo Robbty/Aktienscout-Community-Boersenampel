@@ -456,18 +456,24 @@ async function pollCircle(allowBlink = false) {
 // (ISIN > WKN > Name, Ergebnis dauerhaft gecacht), den Kurs holen (5-Min-Cache)
 // und nach Euro umrechnen. Alles defensiv — ohne Kurs zeigt das Popup "–".
 const QUOTE_TTL_MS = 5 * 60 * 1000;        // Kurse kurz cachen (Popup-Öffnungen)
-// Gescheiterte Auflösungen nach 1 h erneut versuchen: ein Yahoo-Schluckauf
-// (Drosselung beim ersten großen Abruf) soll nicht einen ganzen Tag kleben
-// (live gesehen: Accor blieb dadurch auf "–", obwohl die Namenssuche geht).
-const SYMBOL_RETRY_MS = 60 * 60 * 1000;
+// Gescheiterte Auflösungen schon nach 2 Minuten erneut versuchen — praktisch
+// also bei jeder neuen Popup-Sitzung. Ein einzelner Yahoo-Schluckauf soll
+// keinen dauerhaft leeren Kurs hinterlassen (live gesehen bei Accor); die
+// kurze Sperre verhindert nur das Hämmern bei schnell wiederholtem Öffnen.
+const SYMBOL_RETRY_MS = 2 * 60 * 1000;
 const QUOTE_FETCH_DELAY_MS = 250;          // höflicher Abstand (gegen 429-Drosselung)
 // Bei Änderungen an der Auflösungslogik hochzählen -> alte Cache-Einträge
-// werden neu aufgelöst (v2: Plausibilitätsprüfung; v3: hängengebliebene
+// werden neu aufgelöst (v2: Plausibilitätsprüfung; v3/v4: hängengebliebene
 // Fehlversuche einmalig lösen).
-const SYMBOL_RESOLVE_VERSION = 3;
+const SYMBOL_RESOLVE_VERSION = 4;
 
 async function resolveYahooSymbol(query) {
-  const found = await fetchYahooSearch(query);
+  let found = await fetchYahooSearch(query);
+  if (found === undefined) {
+    // Netz-/Drosselfehler (nicht "keine Treffer") -> einmal in Ruhe nachfassen.
+    await sleep(800);
+    found = await fetchYahooSearch(query);
+  }
   return found ? pickYahooSymbol(found) : null;
 }
 
@@ -546,6 +552,12 @@ async function getCircleQuotes() {
         if (anchor == null) break; // ohne Anker entscheidet der erste Treffer
       }
       const best = pickPlausibleQuote(candidates, anchor);
+      if (!best) {
+        // Sichtbar machen, WORAN es scheiterte (Worker-Konsole via
+        // chrome://extensions -> "Service Worker untersuchen").
+        console.warn('[Kurse] Kein (plausibles) Yahoo-Symbol für "' + ti.name + '"',
+          { versucht: queries, anker: anchor, kandidaten: candidates });
+      }
       entry = best
         ? { symbol: best.symbol, query: best.query, resolvedAt: now, v: SYMBOL_RESOLVE_VERSION }
         : { symbol: null, failedAt: now, v: SYMBOL_RESOLVE_VERSION };
