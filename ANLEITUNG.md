@@ -109,8 +109,13 @@ Darunter siehst du jede Position einzeln. Klick drauf – und sie öffnet sich i
 
 Und ganz rechts: der **📈-Knopf**. Ein Klick öffnet ein eigenes **Chart-Fenster** mit dem Kursverlauf.
 Darin siehst du auch zwei gestrichelte Linien: den Einkaufspreis und das Kursziel.
-Oben kannst du den Zeitraum wählen (1 Monat bis Maximum). Das Fenster bleibt offen,
-bis du es selbst schließt – praktisch zum Danebenlegen.
+Den Zeitraum wählst du oben mit Knöpfen oder frei mit der kleinen Leiste unter dem Chart.
+Das Fenster bleibt offen, bis du es selbst schließt – praktisch zum Danebenlegen.
+
+**Und noch ein Trick:** Beim ersten Chart-Klick verwandelt sich die Circle-Ansicht selbst
+in ein **eigenes Fenster** (gleicher Inhalt, gleiche Stelle). Auch das bleibt offen, bis du es
+schließt – und aus ihm heraus kannst du bequem beliebig viele Charts öffnen und schließen.
+Du bekommst es auch direkt über den kleinen Knopf **„In eigenem Fenster öffnen ↗"** oben im Circle-Tab.
 
 > Die Kurse kommen kostenlos von Yahoo Finance. Wenn dort mal nichts kommt,
 > steht in der Spalte einfach „–" – alles andere funktioniert normal weiter.

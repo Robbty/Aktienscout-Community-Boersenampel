@@ -201,6 +201,16 @@ footer { border-top: 1px solid var(--line); padding: 8px 12px; display: flex; fl
 .detail-body.loading, .detail-body.error { color: var(--muted); }
 .detail-body.error { color: var(--red); }
 
+/* Circle als eigenes Fenster (Standalone-Modus: popup.html?standalone=1) */
+.circle-window-hint { text-align: right; padding: 4px 12px 0; }
+body.standalone {
+  width: auto;          /* das Fenster bestimmt die Breite */
+  min-width: 640px;
+  height: 100vh;
+  max-height: none;
+}
+body.standalone .circle-window-hint { display: none; }
+
 /* Circle: kein Zugang -> Beitritts-Hinweis */
 .noaccess { padding: 16px 14px; text-align: center; }
 .noaccess-head { font-size: 15px; font-weight: 700; margin: 0 0 6px; }

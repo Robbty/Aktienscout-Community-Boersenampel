@@ -726,25 +726,107 @@ api.notifications.onClicked.addListener((id) => {
   if (id.startsWith('circle-')) api.tabs.create({ url: CIRCLE_CONFIG.classroomUrl });
 });
 
-// --- Chart-Fenster nach dem Popup-Schluss nach vorn holen ---------------------
-// Die Browser-API kann Fenster nicht "nach vorn ohne Fokus" heben. Deshalb:
-// Charts öffnen unfokussiert (das Popup soll ja offen bleiben), ihre IDs
-// sammeln — und sobald das Popup sich schließt (sein Port trennt sich), alle
-// gesammelten Fenster fokussiert nach vorn holen. So sieht der Nutzer sie,
-// ohne dass sie ihm vorher das Popup zugemacht haben.
-let pendingChartWindows = [];
+// --- Fenster-Verwaltung: Charts + eigenständiges Circle-Fenster ----------------
+// Rahmenlose type:'popup'-Fenster, die entstehen, WÄHREND das Action-Popup noch
+// offen ist, hängt der Fenstermanager (beobachtet unter Linux) an das Popup und
+// schließt sie mit ihm. Deshalb: das Popup hält einen Port; Fenster-Wünsche
+// kommen über diesen Port (Zustellung vor dem Disconnect garantiert), das Popup
+// schließt sich sofort selbst, und der Worker erzeugt die Fenster erst, wenn
+// der Port getrennt — das Popup also wirklich zu — ist.
+let popupPort = null;
+
+function waitPopupClosed(timeoutMs = 400) {
+  if (!popupPort) return Promise.resolve();
+  return new Promise((resolve) => {
+    const t = setTimeout(resolve, timeoutMs); // Sicherheitsnetz
+    popupPort.onDisconnect.addListener(() => {
+      clearTimeout(t);
+      resolve();
+    });
+  });
+}
+
+// Das eigenständige Circle-Fenster ist die popup.html im Standalone-Modus —
+// gleiche Ansicht, gleiche Daten, bleibt aber offen, bis der Nutzer es schließt.
+// Die Fenster-ID liegt in storage.session (überlebt das Einschlafen des Workers),
+// damit ein zweiter Aufruf das vorhandene Fenster fokussiert statt zu doppeln.
+async function getCircleWindowId() {
+  try {
+    const s = await api.storage.session.get('circleWindowId');
+    return s.circleWindowId != null ? s.circleWindowId : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function setCircleWindowId(id) {
+  try { await api.storage.session.set({ circleWindowId: id }); } catch (e) { /* optional */ }
+}
+
+api.windows.onRemoved.addListener(async (id) => {
+  if (id === await getCircleWindowId()) await setCircleWindowId(null);
+});
+
+async function openCircleWindow(pos) {
+  await waitPopupClosed();
+  const existing = await getCircleWindowId();
+  if (existing != null) {
+    try {
+      await api.windows.update(existing, { focused: true });
+      return;
+    } catch (e) { await setCircleWindowId(null); } // Fenster gibt es nicht mehr
+  }
+  const createData = {
+    url: api.runtime.getURL('popup.html') + '?standalone=1',
+    type: 'popup', // rahmenlos wie das Add-on-Popup -> nahtloser Übergang
+    width: 660,
+    height: 620,
+  };
+  // An der Position des (soeben geschlossenen) Popups erscheinen lassen.
+  if (pos && typeof pos.left === 'number' && typeof pos.top === 'number') {
+    createData.left = Math.max(0, Math.round(pos.left));
+    createData.top = Math.max(0, Math.round(pos.top));
+  }
+  const win = await api.windows.create(createData);
+  if (win && win.id != null) await setCircleWindowId(win.id);
+}
+
+async function createChartWindow(params) {
+  // Nur eigene, bekannte Parameter übernehmen — keine fremden URLs.
+  const allowed = ['symbol', 'name', 'buy', 'target', 'buyTs'];
+  const qs = new URLSearchParams();
+  for (const k of allowed) {
+    const v = params && params[k];
+    if (typeof v === 'string' && v) qs.set(k, v);
+  }
+  await api.windows.create({
+    url: api.runtime.getURL('chart.html') + '?' + qs.toString(),
+    type: 'popup',
+    width: 560,
+    height: 500,
+  });
+}
+
+async function handleOpenChart(msg) {
+  if (msg.spawnCircle) {
+    // Erster Chart-Klick aus dem Popup: erst das Circle-Fenster als "Ersatz"
+    // an der Popup-Position, dann den Chart fokussiert obendrauf.
+    await openCircleWindow(msg.pos);
+  } else {
+    await waitPopupClosed();
+  }
+  await createChartWindow(msg.params);
+}
 
 api.runtime.onConnect.addListener((port) => {
   if (port.name !== 'popup') return;
-  pendingChartWindows = [];
-  port.onDisconnect.addListener(async () => {
-    const ids = pendingChartWindows;
-    pendingChartWindows = [];
-    for (const id of ids) {
-      try {
-        await api.windows.update(id, { focused: true });
-      } catch (e) { /* Fenster wurde inzwischen von Hand geschlossen */ }
-    }
+  popupPort = port;
+  port.onMessage.addListener((msg) => {
+    if (msg && msg.type === 'openChart') handleOpenChart(msg);
+    else if (msg && msg.type === 'openCircleWindow') openCircleWindow(msg.pos);
+  });
+  port.onDisconnect.addListener(() => {
+    if (popupPort === port) popupPort = null;
   });
 });
 
@@ -778,35 +860,8 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         break;
       }
       case 'openChart': {
-        // (IDs der erzeugten Fenster landen in pendingChartWindows, s. u.)
-        // Chart-Fenster aus dem Worker öffnen (unabhängig vom Popup-Lebenszyklus,
-        // siehe openChartWindow in popup.js). Nur eigene, bekannte Parameter
-        // übernehmen — keine fremden URLs.
-        const allowed = ['symbol', 'name', 'buy', 'target', 'buyTs'];
-        const qs = new URLSearchParams();
-        for (const k of allowed) {
-          const v = msg.params && msg.params[k];
-          if (typeof v === 'string' && v) qs.set(k, v);
-        }
-        const createData = {
-          url: api.runtime.getURL('chart.html') + '?' + qs.toString(),
-          // Bewusst KEIN type:'popup': solche rahmenlosen Fenster hängt der
-          // Fenstermanager (beobachtet unter Linux) an das Action-Popup und
-          // schließt sie mit ihm. Ein normales Fenster ist ein eigenständiges
-          // Toplevel und bleibt stehen, bis der Nutzer es selbst schließt.
-          type: 'normal',
-          width: 560,
-          height: 600, // inkl. Browserleiste; Chart-Layout passt sich an
-        };
-        let win;
-        try {
-          // Ohne Fokus öffnen -> das Action-Popup bleibt offen und weitere
-          // Charts lassen sich direkt nacheinander aufklappen.
-          win = await api.windows.create({ ...createData, focused: false });
-        } catch (e) {
-          win = await api.windows.create(createData); // Firefox kennt focused:false nicht
-        }
-        if (win && win.id != null) pendingChartWindows.push(win.id);
+        // Direktweg des Standalone-Fensters (das Popup nutzt den Port, s. o.).
+        await handleOpenChart(msg);
         sendResponse({ ok: true });
         break;
       }

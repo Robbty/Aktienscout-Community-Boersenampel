@@ -13,9 +13,16 @@ let circleChecked = false; // Zugang pro Popup-Öffnung nur einmal frisch prüfe
 
 const api = globalThis.browser || globalThis.chrome;
 
-// Offene Verbindung zum Worker: ihre Trennung meldet ihm, dass das Popup zu
-// ist -> er holt dann die im Hintergrund geöffneten Chart-Fenster nach vorn.
-api.runtime.connect({ name: 'popup' });
+// Standalone-Modus: dieselbe Seite läuft als eigenständiges Circle-Fenster
+// (popup.html?standalone=1) — bleibt offen, bis der Nutzer sie schließt.
+const STANDALONE = new URLSearchParams(location.search).get('standalone') === '1';
+if (STANDALONE) document.body.classList.add('standalone');
+
+// Nur das echte Action-Popup hält einen Port zum Worker. Fenster-Wünsche gehen
+// über diesen Port (Zustellung vor dem Trennen garantiert), danach schließt
+// sich das Popup selbst — der Worker erzeugt die Fenster erst nach dem Trennen
+// (sonst hängt der Fenstermanager sie ans Popup und schließt sie mit ihm).
+const popupPort = STANDALONE ? null : api.runtime.connect({ name: 'popup' });
 
 function send(msg) {
   // Promise-Form funktioniert in Chrome (MV3) und Firefox gleichermaßen.
@@ -487,11 +494,22 @@ function openChartWindow(p, q) {
   // Kaufzeitpunkt mitgeben -> der Chart markiert "Kauf" auf der EK-Linie.
   const buyTs = p.buyDate != null ? parseGermanDate(p.buyDate) : null;
   if (buyTs != null) chartParams.buyTs = String(buyTs);
-  // Das Fenster öffnet der WORKER, nicht das Popup: Fenster, die aus dem
-  // Action-Popup heraus entstehen, hängen (je nach Fenstermanager) am Popup
-  // und verschwinden mit ihm. Vom Worker geöffnet bleiben sie stehen, bis
-  // der Nutzer sie selbst schließt.
-  send({ type: 'openChart', params: chartParams });
+
+  if (STANDALONE || !popupPort) {
+    // Eigenständiges Fenster: der Chart öffnet einfach fokussiert obendrauf.
+    send({ type: 'openChart', params: chartParams });
+    return;
+  }
+  // Action-Popup: der Worker öffnet an dieser Position ERST das eigenständige
+  // Circle-Fenster (die nahtlose "Kopie" dieses Popups), DANN den Chart mit
+  // Fokus — und dieses Popup verabschiedet sich sofort selbst.
+  popupPort.postMessage({
+    type: 'openChart',
+    params: chartParams,
+    spawnCircle: true,
+    pos: { left: window.screenX, top: window.screenY },
+  });
+  window.close();
 }
 
 // Spalten: Aktie | Stück | EK-Preis | Einsatz | Akt. Kurs (Yahoo, mit % zum EK)
@@ -818,8 +836,10 @@ function renderCircle() {
     false,
   );
 
-  // Angesehen -> goldenen Punkt auf dem Icon löschen.
-  if ((meta.pending || 0) > 0) {
+  // Angesehen -> goldenen Punkt auf dem Icon löschen. Im Standalone-Fenster
+  // nur, wenn es wirklich im Vordergrund ist — ein tagelang im Hintergrund
+  // offenes Fenster soll neue Käufe/Verkäufe nicht ungesehen quittieren.
+  if ((meta.pending || 0) > 0 && (!STANDALONE || document.hasFocus())) {
     state.circleMeta = { ...meta, pending: 0 };
     send({ type: 'circleSeen' });
   }
@@ -882,7 +902,40 @@ async function init() {
   const r = await send({ type: 'pollNow' });
   if (r) state = r;
   renderAll();
+  // Das Standalone-Fenster ist die "Circle-Kopie" -> direkt dorthin.
+  if (STANDALONE) switchTab('circle');
 }
+
+// Standalone-Fenster lebt lange -> bei neuen Daten (Hintergrund-Alarm, anderes
+// Fenster) automatisch nachziehen. Auch die Privacy-Regel bleibt so wirksam:
+// meldet ein fehlgeschlagener Abruf lastPollOk=false, verbirgt sich die Ansicht.
+if (STANDALONE) {
+  api.storage.onChanged.addListener(async (changes, area) => {
+    if (area !== 'local') return;
+    if (!('circle' in changes || 'circleMeta' in changes || 'circleHistory' in changes)) return;
+    const s = await send({ type: 'getState' });
+    if (!s) return;
+    state.circle = s.circle;
+    state.circleMeta = s.circleMeta;
+    state.circleHistory = s.circleHistory;
+    if (activeTab === 'circle') renderCircle();
+  });
+  // Kommt das Fenster in den Vordergrund, ausstehende Ereignisse quittieren
+  // (renderCircle löscht dann den goldenen Punkt).
+  window.addEventListener('focus', () => {
+    if (activeTab === 'circle' && state && (state.circleMeta || {}).pending > 0) renderCircle();
+  });
+}
+
+// ↗-Schalter (nur im Action-Popup sichtbar): Circle als eigenes Fenster öffnen.
+document.getElementById('circleWindowBtn').addEventListener('click', () => {
+  if (!popupPort) return;
+  popupPort.postMessage({
+    type: 'openCircleWindow',
+    pos: { left: window.screenX, top: window.screenY },
+  });
+  window.close();
+});
 
 function currentMatches() {
   const filter = document.getElementById('search').value.trim().toLowerCase();
