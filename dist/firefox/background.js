@@ -765,12 +765,23 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           const v = msg.params && msg.params[k];
           if (typeof v === 'string' && v) qs.set(k, v);
         }
-        await api.windows.create({
+        const createData = {
           url: api.runtime.getURL('chart.html') + '?' + qs.toString(),
-          type: 'popup',
+          // Bewusst KEIN type:'popup': solche rahmenlosen Fenster hängt der
+          // Fenstermanager (beobachtet unter Linux) an das Action-Popup und
+          // schließt sie mit ihm. Ein normales Fenster ist ein eigenständiges
+          // Toplevel und bleibt stehen, bis der Nutzer es selbst schließt.
+          type: 'normal',
           width: 560,
-          height: 500, // Platz für 45°-Achsenbeschriftung + Auswahl-Leiste (Brush)
-        });
+          height: 600, // inkl. Browserleiste; Chart-Layout passt sich an
+        };
+        try {
+          // Ohne Fokus öffnen -> das Action-Popup bleibt offen und weitere
+          // Charts lassen sich direkt nacheinander aufklappen.
+          await api.windows.create({ ...createData, focused: false });
+        } catch (e) {
+          await api.windows.create(createData); // Firefox kennt focused:false nicht
+        }
         sendResponse({ ok: true });
         break;
       }
