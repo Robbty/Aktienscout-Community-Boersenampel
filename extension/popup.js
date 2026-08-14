@@ -480,11 +480,14 @@ function openChartWindow(p, q) {
   const ek = ekBaseOf(p);
   if (ek != null) params.set('buy', String(ek));
   if (p.currentPrice != null) params.set('target', String(p.currentPrice));
+  // Kaufzeitpunkt mitgeben -> der Chart markiert "Kauf" auf der EK-Linie.
+  const buyTs = p.buyDate != null ? parseGermanDate(p.buyDate) : null;
+  if (buyTs != null) params.set('buyTs', String(buyTs));
   api.windows.create({
     url: api.runtime.getURL('chart.html') + '?' + params.toString(),
     type: 'popup',
-    width: 780,
-    height: 540,
+    width: 560,
+    height: 440,
   });
 }
 

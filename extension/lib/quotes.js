@@ -25,6 +25,16 @@ function yahooChartUrl(symbol, range, interval) {
   );
 }
 
+// Chart-URL mit freiem Zeitfenster (Unix-Sekunden) statt fester range.
+function yahooChartUrlPeriod(symbol, period1, period2, interval) {
+  return (
+    QUOTES_CONFIG.chartBase + encodeURIComponent(symbol) +
+    '?period1=' + Math.floor(period1) +
+    '&period2=' + Math.floor(period2) +
+    '&interval=' + encodeURIComponent(interval || '1d')
+  );
+}
+
 function yahooSearchUrl(query) {
   return QUOTES_CONFIG.searchBase + '?q=' + encodeURIComponent(query) + '&quotesCount=8&newsCount=0';
 }
@@ -84,6 +94,31 @@ function pickYahooSymbol(searchJson) {
   return best.symbol;
 }
 
+// Plausibelsten Kandidaten wählen. Hintergrund: die Stammdaten der Module sind
+// nicht immer sauber (live gesehen: Adidas-Modul mit Allianz-ISIN/-Ticker) —
+// deshalb werden ISIN/WKN/Name ALLE aufgelöst und gegen einen Anker-Preis der
+// Position (Kursziel bzw. EK je Aktie, in €) geprüft.
+// candidates: [{symbol, priceEur, …}] in Prioritätsreihenfolge.
+// Rückgabe: der Kandidat, dessen Kurs dem Anker am nächsten liegt — aber nur,
+// wenn er um weniger als Faktor 2 abweicht; sonst null (lieber kein Kurs als
+// der einer fremden Aktie). Ohne Anker oder ohne Kurse: erster Kandidat.
+function pickPlausibleQuote(candidates, anchorEur) {
+  const withSym = (candidates || []).filter((c) => c && c.symbol);
+  if (!withSym.length) return null;
+  if (anchorEur == null || !(anchorEur > 0)) return withSym[0];
+  const priced = withSym.filter(
+    (c) => typeof c.priceEur === 'number' && isFinite(c.priceEur) && c.priceEur > 0,
+  );
+  if (!priced.length) return withSym[0]; // ohne Kurs keine Prüfung möglich
+  let best = priced[0];
+  let bestDev = Math.abs(Math.log(best.priceEur / anchorEur));
+  for (const c of priced) {
+    const dev = Math.abs(Math.log(c.priceEur / anchorEur));
+    if (dev < bestDev) { best = c; bestDev = dev; }
+  }
+  return bestDev <= Math.log(2) ? best : null;
+}
+
 // --- Währung ------------------------------------------------------------------
 
 // Yahoo notiert Londoner Kurse in Pence (GBp/GBX) -> auf GBP normalisieren.
@@ -137,6 +172,8 @@ async function fetchYahooSearch(query) {
 if (typeof globalThis !== 'undefined') {
   globalThis.QUOTES_CONFIG = QUOTES_CONFIG;
   globalThis.yahooChartUrl = yahooChartUrl;
+  globalThis.yahooChartUrlPeriod = yahooChartUrlPeriod;
+  globalThis.pickPlausibleQuote = pickPlausibleQuote;
   globalThis.yahooSearchUrl = yahooSearchUrl;
   globalThis.parseYahooChartMeta = parseYahooChartMeta;
   globalThis.parseYahooChartSeries = parseYahooChartSeries;

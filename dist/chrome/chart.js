@@ -15,9 +15,24 @@ const SYMBOL = params.get('symbol') || '';
 const NAME = params.get('name') || SYMBOL;
 const BUY_EUR = params.get('buy') != null ? Number(params.get('buy')) : null;
 const TARGET_EUR = params.get('target') != null ? Number(params.get('target')) : null;
+const BUY_TS = params.get('buyTs') != null ? Number(params.get('buyTs')) : null; // ms
 
-// Sinnvolle Auflösung je Zeitraum (Tages- bis Monatskerzen).
-const RANGE_INTERVAL = { '1mo': '1d', '3mo': '1d', '6mo': '1d', '1y': '1wk', '5y': '1wk', max: '1mo' };
+// Zeiträume: kurze Fenster über period1/period2 (frei wählbar), lange über
+// Yahoos range-Parameter. fallback greift, wenn das Fenster leer ist (Börse
+// zu, z. B. "12h" nachts) -> dann letzter Handelstag.
+const RANGES = {
+  '12h': { hours: 12, interval: '5m', fallback: { range: '1d', interval: '5m' } },
+  tage: { range: '5d', interval: '15m' },   // 5 Handelstage
+  wochen: { hours: 21 * 24, interval: '1h' }, // ~3 Wochen
+  '1mo': { range: '1mo', interval: '1d' },
+  '3mo': { range: '3mo', interval: '1d' },
+};
+
+function rangeUrl(cfg) {
+  if (cfg.range) return yahooChartUrl(SYMBOL, cfg.range, cfg.interval);
+  const now = Date.now() / 1000;
+  return yahooChartUrlPeriod(SYMBOL, now - cfg.hours * 3600, now, cfg.interval);
+}
 
 const canvas = document.getElementById('chart');
 const ctx = canvas.getContext('2d');
@@ -25,7 +40,7 @@ const ctx = canvas.getContext('2d');
 let series = null;      // { timestamps, closes }
 let quoteMeta = null;   // { price, currency, symbol }
 let fxPerEur = null;    // Einheiten Chart-Währung je 1 EUR (null = EUR/unbekannt)
-let currentRange = '6mo';
+let currentRange = 'tage';
 
 const fmtNum = (n, digits = 2) =>
   Number(n).toLocaleString('de-DE', { minimumFractionDigits: digits, maximumFractionDigits: digits });
@@ -116,15 +131,22 @@ function draw() {
     ctx.fillText(fmtNum(v), M.left - 6, yy);
   }
 
-  // Datums-Beschriftung: Anfang, Mitte, Ende.
+  // Beschriftung Anfang/Mitte/Ende — bei kurzen Fenstern Uhrzeit statt Datum.
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  const dateOf = (i) =>
-    new Date(timestamps[i] * 1000).toLocaleDateString('de-DE', {
-      day: '2-digit', month: '2-digit', year: '2-digit',
-    });
+  const spanSec = timestamps[timestamps.length - 1] - timestamps[0];
+  const labelOf = (i) => {
+    const d = new Date(timestamps[i] * 1000);
+    if (spanSec <= 26 * 3600) {
+      return d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    }
+    if (spanSec <= 8 * 86400) {
+      return d.toLocaleDateString('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+    }
+    return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  };
   const idxs = [0, Math.floor((timestamps.length - 1) / 2), timestamps.length - 1];
-  for (const i of idxs) ctx.fillText(dateOf(i), x(i), h - M.bottom + 6);
+  for (const i of idxs) ctx.fillText(labelOf(i), x(i), h - M.bottom + 6);
 
   // Referenzlinien (gestrichelt): Einkauf grau, Kursziel gold.
   const dashLine = (v, color) => {
@@ -162,6 +184,31 @@ function draw() {
   ctx.arc(x(li), y(closes[li]), 3, 0, 2 * Math.PI);
   ctx.fillStyle = '#1a73e8';
   ctx.fill();
+
+  // Kauf-Markierung: Punkt samt "Kauf"-Label auf der EK-Linie am Kaufzeitpunkt
+  // (nur wenn der Kauf im sichtbaren Zeitfenster liegt).
+  if (buyLine != null && BUY_TS != null) {
+    const buySec = BUY_TS / 1000;
+    if (buySec >= timestamps[0] && buySec <= timestamps[timestamps.length - 1]) {
+      let bi = 0;
+      for (let i = 0; i < timestamps.length; i++) {
+        if (timestamps[i] <= buySec) bi = i;
+        else break;
+      }
+      ctx.beginPath();
+      ctx.arc(x(bi), y(buyLine), 4, 0, 2 * Math.PI);
+      ctx.fillStyle = '#5f6368';
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+      ctx.fillStyle = '#5f6368';
+      ctx.font = '10px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.fillText('Kauf', x(bi), y(buyLine) - 6);
+    }
+  }
 }
 
 async function load(range) {
@@ -173,13 +220,26 @@ async function load(range) {
   draw();
 
   try {
-    const res = await fetch(yahooChartUrl(SYMBOL, range, RANGE_INTERVAL[range] || '1d'), {
-      headers: { 'Accept': 'application/json' },
-    });
+    const cfg = RANGES[range] || RANGES.tage;
+    let res = await fetch(rangeUrl(cfg), { headers: { 'Accept': 'application/json' } });
     if (!res.ok) throw new Error('HTTP ' + res.status);
-    const json = await res.json();
+    let json = await res.json();
     quoteMeta = parseYahooChartMeta(json) || quoteMeta;
-    const fresh = parseYahooChartSeries(json);
+    let fresh = parseYahooChartSeries(json);
+
+    // Leeres Fenster (Börse zu, z. B. "12h" nachts) -> letzter Handelstag.
+    let usedFallback = false;
+    if (!fresh && cfg.fallback) {
+      res = await fetch(yahooChartUrl(SYMBOL, cfg.fallback.range, cfg.fallback.interval), {
+        headers: { 'Accept': 'application/json' },
+      });
+      if (res.ok) {
+        json = await res.json();
+        quoteMeta = parseYahooChartMeta(json) || quoteMeta;
+        fresh = parseYahooChartSeries(json);
+        usedFallback = true;
+      }
+    }
     if (!fresh) throw new Error('keine Kursdaten');
     if (range !== currentRange) return; // Nutzer hat inzwischen umgeschaltet
     series = fresh;
@@ -195,7 +255,8 @@ async function load(range) {
       SYMBOL +
       (quoteMeta && quoteMeta.price != null
         ? ' · aktuell ' + fmtNum(quoteMeta.price) + ' ' + (quoteMeta.currency || '')
-        : ''),
+        : '') +
+      (usedFallback ? ' · Börse geschlossen – letzter Handelstag' : ''),
     );
     renderLegend();
     draw();

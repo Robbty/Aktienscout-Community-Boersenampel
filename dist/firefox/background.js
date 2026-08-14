@@ -458,6 +458,9 @@ async function pollCircle(allowBlink = false) {
 const QUOTE_TTL_MS = 5 * 60 * 1000;        // Kurse kurz cachen (Popup-Öffnungen)
 const SYMBOL_RETRY_MS = 24 * 60 * 60 * 1000; // gescheiterte Auflösung 1x/Tag neu
 const QUOTE_FETCH_DELAY_MS = 120;          // höflicher Abstand zwischen Abrufen
+// Bei Änderungen an der Auflösungslogik hochzählen -> alte Cache-Einträge
+// werden neu aufgelöst (v2: Plausibilitätsprüfung gegen Kursziel/EK).
+const SYMBOL_RESOLVE_VERSION = 2;
 
 async function resolveYahooSymbol(query) {
   const found = await fetchYahooSearch(query);
@@ -474,6 +477,16 @@ async function cachedYahooQuote(quotes, symbol, now) {
   const entry = { ...fresh, at: now };
   quotes[symbol] = entry;
   return entry;
+}
+
+// Kurs eines Quote-Eintrags nach Euro bringen (FX aus demselben Cache).
+async function quoteEur(quotes, qt, now) {
+  const norm = normalizeQuoteCurrency(qt.currency);
+  if (norm.currency === 'EUR' || norm.currency === null) {
+    return convertToEur(qt.price, qt.currency, null);
+  }
+  const fx = await cachedYahooQuote(quotes, fxPairSymbol(norm.currency), now);
+  return fx ? convertToEur(qt.price, qt.currency, fx.price) : null;
 }
 
 async function getCircleQuotes() {
@@ -494,31 +507,52 @@ async function getCircleQuotes() {
     if (ti.kind === 'meta' || circleModuleClosed(m)) continue;
 
     // 1) Symbol auflösen (einmalig; Fehlschläge erst nach 24 h erneut).
+    // Die Stammdaten der Module sind nicht immer sauber (live: Adidas-Modul
+    // mit Allianz-ISIN) -> ISIN, WKN und Name werden ALLE probiert und der
+    // Kandidat gewählt, dessen Kurs zum Kursziel/EK der Position passt.
     let entry = symbols[m.id];
-    if (!entry || (!entry.symbol && now - (entry.failedAt || 0) > SYMBOL_RETRY_MS)) {
-      const query = (m.trade && (m.trade.isin || m.trade.wkn)) || ti.name;
-      await sleep(QUOTE_FETCH_DELAY_MS);
-      const symbol = query ? await resolveYahooSymbol(query) : null;
-      entry = symbol
-        ? { symbol, query, resolvedAt: now }
-        : { symbol: null, query, failedAt: now };
+    const isStale =
+      !entry ||
+      entry.v !== SYMBOL_RESOLVE_VERSION ||
+      (!entry.symbol && now - (entry.failedAt || 0) > SYMBOL_RETRY_MS);
+    if (isStale) {
+      const anchor =
+        ti.currentPrice != null
+          ? ti.currentPrice // Kursziel des Autors (je Aktie, €)
+          : m.trade && m.trade.buyPriceEur != null
+            ? m.trade.buyPriceEur
+            : m.trade && m.trade.qty == null && m.trade.totalBuyEur != null
+              ? m.trade.totalBuyEur // Format ohne Stück: Kaufpreis = Titeleinheit
+              : null;
+      const queries = [];
+      if (m.trade && m.trade.isin) queries.push(m.trade.isin);
+      if (m.trade && m.trade.wkn) queries.push(m.trade.wkn);
+      if (ti.name) queries.push(ti.name);
+
+      const seen = new Set();
+      const candidates = [];
+      for (const query of queries) {
+        await sleep(QUOTE_FETCH_DELAY_MS);
+        const symbol = await resolveYahooSymbol(query);
+        if (!symbol || seen.has(symbol)) continue;
+        seen.add(symbol);
+        const qt = await cachedYahooQuote(quotes, symbol, now);
+        const priceEur = qt ? await quoteEur(quotes, qt, now) : null;
+        candidates.push({ symbol, priceEur, query });
+        if (anchor == null) break; // ohne Anker entscheidet der erste Treffer
+      }
+      const best = pickPlausibleQuote(candidates, anchor);
+      entry = best
+        ? { symbol: best.symbol, query: best.query, resolvedAt: now, v: SYMBOL_RESOLVE_VERSION }
+        : { symbol: null, failedAt: now, v: SYMBOL_RESOLVE_VERSION };
       symbols[m.id] = entry;
     }
     if (!entry.symbol) continue;
 
-    // 2) Kurs holen (TTL-Cache).
+    // 2) Kurs holen (TTL-Cache) und nach Euro umrechnen.
     const qt = await cachedYahooQuote(quotes, entry.symbol, now);
     if (!qt) continue;
-
-    // 3) Nach Euro umrechnen (FX-Kurs kommt aus derselben API, gleicher Cache).
-    let priceEur = null;
-    const norm = normalizeQuoteCurrency(qt.currency);
-    if (norm.currency === 'EUR' || norm.currency === null) {
-      priceEur = convertToEur(qt.price, qt.currency, null);
-    } else {
-      const fx = await cachedYahooQuote(quotes, fxPairSymbol(norm.currency), now);
-      priceEur = fx ? convertToEur(qt.price, qt.currency, fx.price) : null;
-    }
+    const priceEur = await quoteEur(quotes, qt, now);
 
     out[m.id] = {
       symbol: entry.symbol,

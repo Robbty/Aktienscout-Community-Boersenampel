@@ -12,8 +12,9 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 runInThisContext(readFileSync(join(here, '..', 'extension', 'lib', 'quotes.js'), 'utf8'));
 const {
-  yahooChartUrl, yahooSearchUrl, parseYahooChartMeta, parseYahooChartSeries,
-  pickYahooSymbol, normalizeQuoteCurrency, fxPairSymbol, convertToEur,
+  yahooChartUrl, yahooChartUrlPeriod, yahooSearchUrl, parseYahooChartMeta,
+  parseYahooChartSeries, pickYahooSymbol, pickPlausibleQuote,
+  normalizeQuoteCurrency, fxPairSymbol, convertToEur,
 } = globalThis;
 
 // --- URLs ---------------------------------------------------------------------
@@ -27,6 +28,43 @@ assert.equal(
   'Symbol wird URL-codiert (=X)',
 );
 assert.ok(yahooSearchUrl('DE0007164600').includes('q=DE0007164600'));
+assert.equal(
+  yahooChartUrlPeriod('SAP.DE', 1700000000.7, 1700100000.2, '1h'),
+  'https://query1.finance.yahoo.com/v8/finance/chart/SAP.DE?period1=1700000000&period2=1700100000&interval=1h',
+  'freies Zeitfenster, Sekunden abgerundet',
+);
+
+// --- Plausibilitätsprüfung der Symbol-Kandidaten --------------------------------
+// Live-Fall Adidas: das Modul trägt die Allianz-ISIN -> der ISIN-Kandidat (441 €)
+// passt nicht zum Kursziel 177,63 €, der Namens-Kandidat (161 €) gewinnt.
+assert.equal(
+  pickPlausibleQuote(
+    [{ symbol: 'ALV.DE', priceEur: 441.9 }, { symbol: 'ADS.DE', priceEur: 160.8 }],
+    177.63,
+  ).symbol,
+  'ADS.DE',
+);
+assert.equal(
+  pickPlausibleQuote([{ symbol: 'ALV.DE', priceEur: 441.9 }], 177.63),
+  null,
+  'einziger Kandidat weicht > Faktor 2 ab -> lieber kein Kurs',
+);
+assert.equal(
+  pickPlausibleQuote([{ symbol: 'SAP.DE', priceEur: 183 }], 180).symbol,
+  'SAP.DE',
+  'passender Kandidat wird akzeptiert',
+);
+assert.equal(
+  pickPlausibleQuote([{ symbol: 'X.DE', priceEur: 50 }, { symbol: 'Y.DE', priceEur: 99 }], null).symbol,
+  'X.DE',
+  'ohne Anker entscheidet die Reihenfolge',
+);
+assert.equal(
+  pickPlausibleQuote([{ symbol: 'X.DE', priceEur: null }], 100).symbol,
+  'X.DE',
+  'ohne Kurs keine Prüfung möglich -> Kandidat bleibt nutzbar (Chart)',
+);
+assert.equal(pickPlausibleQuote([], 100), null);
 
 // --- Chart-Meta (aktueller Kurs) ----------------------------------------------
 const chartFixture = {
