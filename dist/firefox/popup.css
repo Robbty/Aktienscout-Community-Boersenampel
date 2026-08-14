@@ -190,10 +190,22 @@ footer { border-top: 1px solid var(--line); padding: 8px 12px; display: flex; fl
 .tag.bought { background: var(--green); }
 .pct { display: block; font-size: 10px; color: var(--muted); }
 
+/* Phase 2: Detailansicht einer Aktie */
+#tab-ampel.detail-open > *:not(#stockDetail) { display: none !important; }
+.detail { padding: 8px 12px; }
+.detail-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.detail-head .link-btn { padding: 2px 0; }
+.detail-title { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 0 0 2px; }
+.detail-meta { font-size: 11px; color: var(--muted); margin-bottom: 10px; }
+.detail-body { white-space: pre-wrap; font-size: 12.5px; line-height: 1.55; overflow-wrap: break-word; }
+.detail-body.loading, .detail-body.error { color: var(--muted); }
+.detail-body.error { color: var(--red); }
+
 /* Circle: kein Zugang -> Beitritts-Hinweis */
 .noaccess { padding: 16px 14px; text-align: center; }
 .noaccess-head { font-size: 15px; font-weight: 700; margin: 0 0 6px; }
 .noaccess-text { color: var(--muted); font-size: 12px; margin: 0 0 12px; }
 .join-btn { display: inline-block; text-decoration: none; }
+.join-row { display: flex; gap: 8px; justify-content: center; }
 
 .hidden, [hidden] { display: none !important; }

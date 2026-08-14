@@ -234,6 +234,8 @@ async function pollViaFetch(allowBlink = false) {
       // Vermutlich ausgeloggt / kein Zugriff -> nicht als Erfolg werten.
       throw new Error('Keine Ampel-Daten (eingeloggt?)');
     }
+    // buildId für die Detail-Abrufe (Phase 2) merken; rotiert bei Skool-Deploys.
+    if (nextData.buildId) await setMeta({ buildId: nextData.buildId });
     await ingestSnapshot(snapshot, 'fetch', allowBlink);
     return { ok: true };
   } catch (e) {
@@ -449,6 +451,74 @@ async function pollCircle(allowBlink = false) {
   }
 }
 
+// --- Phase 2: Rich-Text-Body einer Aktie (Tier 2) -----------------------------
+// Der Analyse-Text steckt NICHT im Kursbaum-JSON, sondern wird von Skool pro
+// Modul geliefert (gleiches Muster wie die Circle-Bodies). Abruf auf Klick im
+// Popup, gecacht in storage.local.stockBodies mit bodyUpdatedAt-Abgleich.
+const STOCK_BODIES_MAX = 120; // Ampel hat ~40 Aktien; großzügig gedeckelt
+
+// undefined = Route gescheitert (buildId veraltet?); null = Modul ohne Body.
+async function fetchAmpelModuleDesc(buildId, id) {
+  if (!buildId) return undefined;
+  try {
+    const res = await fetch(ampelDataUrl(buildId, id), {
+      credentials: 'include',
+      headers: { 'Accept': 'application/json' },
+    });
+    if (!res.ok) return undefined;
+    return findCourseDesc(await res.json(), id);
+  } catch (e) {
+    return undefined;
+  }
+}
+
+async function getStockBody(id) {
+  // Test-Schalter respektieren — sonst zeigt die Simulation "kein Zugang",
+  // aber die Detailansicht würde weiterhin Bezahlinhalte liefern.
+  if (globalThis.DEBUG_SIMULATE && globalThis.DEBUG_SIMULATE.ampel) {
+    return { ok: false, error: 'TEST-Schalter aktiv (lib/debug.js)' };
+  }
+  const { current, meta } = await getState();
+  const stock = current && current.stocks ? current.stocks[id] : null;
+  const stored = (await api.storage.local.get('stockBodies')).stockBodies || {};
+  const cached = stored[id];
+  if (cached && stock && cached.bodyUpdatedAt === stock.updatedAt) {
+    return { ok: true, text: cached.text, cached: true };
+  }
+
+  let desc = await fetchAmpelModuleDesc(meta.buildId || null, id);
+  if (desc === undefined) {
+    // buildId fehlt oder ist veraltet -> Modulseite als HTML holen; die trägt
+    // den Body im __NEXT_DATA__ UND die frische buildId für kommende Abrufe.
+    try {
+      const res = await fetch(stockUrl(id), {
+        credentials: 'include',
+        headers: { 'Accept': 'text/html' },
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const nextData = extractNextDataFromHtml(await res.text());
+      if (nextData && nextData.buildId) await setMeta({ buildId: nextData.buildId });
+      desc = findCourseDesc(nextData, id);
+    } catch (e) {
+      const msg = String(e.message || e);
+      const access = /HTTP (401|403)/.test(msg) ? 'loggedOut' : 'error';
+      return { ok: false, error: msg, access };
+    }
+  }
+  if (desc === undefined) return { ok: false, error: 'Modul nicht gefunden (kein Zugang?)' };
+
+  const text = desc === null ? null : proseMirrorText(desc);
+  stored[id] = { text, bodyUpdatedAt: stock ? stock.updatedAt : null, fetchedAt: Date.now() };
+  // Cache-Deckel: die am längsten nicht geholten Einträge verdrängen.
+  const ids = Object.keys(stored);
+  if (ids.length > STOCK_BODIES_MAX) {
+    ids.sort((a, b) => (stored[a].fetchedAt || 0) - (stored[b].fetchedAt || 0));
+    for (const drop of ids.slice(0, ids.length - STOCK_BODIES_MAX)) delete stored[drop];
+  }
+  await api.storage.local.set({ stockBodies: stored });
+  return { ok: true, text };
+}
+
 // --- Benachrichtigung -------------------------------------------------------
 async function notifyChanges(delta) {
   const sectionChanged = delta.sectionAdded.length + delta.sectionRemoved.length + delta.sectionEdited.length;
@@ -567,6 +637,10 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         }
         await ingestSnapshot(msg.snapshot, 'page', true);
         sendResponse({ ok: true });
+        break;
+      }
+      case 'getStockBody': {
+        sendResponse(await getStockBody(msg.id));
         break;
       }
       case 'circlePollNow': {

@@ -22,6 +22,18 @@
 
   <div id="tab-ampel">
 
+  <!-- Phase 2: Detailansicht einer Aktie (Analyse-Text aus dem Skool-Modul).
+       Solange offen, blendet .detail-open alle anderen Ampel-Abschnitte aus. -->
+  <section id="stockDetail" class="detail" hidden>
+    <div class="detail-head">
+      <button id="detailBack" class="link-btn" type="button">‹ Zurück</button>
+      <a id="detailOpenSkool" class="link-btn" target="_blank" rel="noreferrer">In Skool öffnen ↗</a>
+    </div>
+    <h2 class="detail-title"><span id="detailDot" class="dot"></span><span id="detailName"></span></h2>
+    <div id="detailMeta" class="detail-meta"></div>
+    <div id="detailBody" class="detail-body"></div>
+  </section>
+
   <section id="changes" class="changes" hidden>
     <div class="changes-head">
       <h2>Seit deinem letzten Besuch</h2>
@@ -53,10 +65,14 @@
   <main id="groups" class="groups" hidden></main>
 
   <div id="ampelNoAccess" class="noaccess" hidden>
-    <p class="noaccess-head">Kein VIP-Zugang</p>
-    <p class="noaccess-text">Du bist bei Skool angemeldet, aber (noch) kein Mitglied der
-      Aktienscout-Community – die Börsenampel ist den VIP-Mitgliedern vorbehalten.</p>
-    <a id="ampelJoin" class="primary-btn join-btn" target="_blank" rel="noreferrer">VIP werden</a>
+    <p class="noaccess-head">Kein Zugang zur Börsenampel</p>
+    <p class="noaccess-text">Du bist bei Skool angemeldet, aber die Börsenampel ist für dich
+      (noch) nicht freigeschaltet. Zugang haben VIP-Mitglieder der Aktienscout-Community –
+      und alle Mitglieder der Community „Der Circle zur ersten Million".</p>
+    <div class="join-row">
+      <a id="ampelJoin" class="primary-btn join-btn" target="_blank" rel="noreferrer">VIP werden</a>
+      <a id="ampelJoinCircle" class="primary-btn join-btn" target="_blank" rel="noreferrer">Circle beitreten</a>
+    </div>
   </div>
 
   </div><!-- /tab-ampel -->

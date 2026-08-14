@@ -27,6 +27,42 @@ function stockUrl(id) {
   return AMPEL_CONFIG.classroomUrl + '?md=' + id;
 }
 
+// Next.js-Datenroute der Ampel-Kursseite (gleiches Muster wie circleDataUrl):
+// liefert das Kurs-JSON, in dem genau das per md angefragte Modul seinen
+// Rich-Text-Body (metadata.desc) trägt. buildId wechselt bei Skool-Deploys.
+function ampelDataUrl(buildId, id) {
+  return (
+    'https://www.skool.com/_next/data/' + buildId + '/' + AMPEL_CONFIG.community +
+    '/classroom/' + AMPEL_CONFIG.course + '.json' + (id ? '?md=' + id : '')
+  );
+}
+
+// Body (metadata.desc) eines Moduls im Kursbaum finden — rekursiv, damit es
+// für die zweistufige Ampel (Sektion -> Aktie) und flache Kurse gleichermaßen
+// funktioniert. Akzeptiert HTML-__NEXT_DATA__ ({props:{pageProps}}) und die
+// _next/data-Form ({pageProps}).
+// Rückgabe: String = Body, null = Modul da aber ohne Body, undefined = Modul
+// nicht im Baum (z. B. kein Zugang / falsche Antwort).
+function findCourseDesc(nextData, id) {
+  const pp =
+    (nextData && nextData.props && nextData.props.pageProps) ||
+    (nextData && nextData.pageProps);
+  const root = pp && pp.course;
+  if (!root) return undefined;
+  let found;
+  (function walk(node) {
+    if (!node || found !== undefined) return;
+    const c = node.course;
+    if (c && c.id === id) {
+      const desc = c.metadata && c.metadata.desc;
+      found = typeof desc === 'string' && desc ? desc : null;
+      return;
+    }
+    for (const child of node.children || []) walk(child);
+  })(root);
+  return found;
+}
+
 // --- Farb-Normalisierung ----------------------------------------------------
 // Skool kennt keine Farbe als Feld; sie ergibt sich aus dem Sektion-Titel.
 function ampelColor(sectionTitle) {
@@ -191,6 +227,8 @@ function diffCount(diff) {
 if (typeof globalThis !== 'undefined') {
   globalThis.AMPEL_CONFIG = AMPEL_CONFIG;
   globalThis.stockUrl = stockUrl;
+  globalThis.ampelDataUrl = ampelDataUrl;
+  globalThis.findCourseDesc = findCourseDesc;
   globalThis.ampelColor = ampelColor;
   globalThis.extractNextDataFromHtml = extractNextDataFromHtml;
   globalThis.classifyAmpelAccess = classifyAmpelAccess;

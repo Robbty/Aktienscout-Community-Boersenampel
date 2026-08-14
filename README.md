@@ -13,6 +13,7 @@ Ein Browser-Add-on, das die **Börsenampel** der [Aktienscout-Community](https:/
 
 - 🟢🟡🔴 **Ampel-Übersicht** – grüne, gelbe und rote Ampel mit allen Aktien, aufklappbar.
 - 🔎 **Schnellsuche** – Aktie eintippen, Enter springt direkt hin.
+- 📄 **Analyse direkt im Add-on** – ein Klick auf eine Aktie zeigt die komplette Analyse (die `[+]`-Punkte, „Fazit", letzte Sichtung) direkt im Popup, ohne Skool öffnen zu müssen. „In Skool öffnen" geht von dort weiterhin mit einem Klick.
 - 🆕 **„Seit deinem letzten Besuch"** – neue, gewechselte, entfernte Aktien auf einen Blick.
 - 🕒 **Statuswechsel-Logbuch** – eine eigene Historie der Ampel-Wechsel der letzten *X* Tage (die Skool-Seite selbst hat keine Historie).
 - 🔔 **Benachrichtigung + blinkendes Symbol**, wenn sich etwas tut.
@@ -33,10 +34,10 @@ Auswertung mit den vier Summen, dazu die Positions-Listen (auf-/zuklappbar) – 
 ## Voraussetzungen
 
 - Du bist in dem Browser, in dem das Add-on läuft, **bei skool.com angemeldet**. (Die Anmeldung allein genügt – du musst keine der Seiten offen haben.)
-- Für den **Ampel-Tab**: Mitgliedschaft in der [Aktienscout-Community](https://www.skool.com/cybermoney-1123).
+- Für den **Ampel-Tab**: VIP-Mitgliedschaft in der [Aktienscout-Community](https://www.skool.com/cybermoney-1123) – **oder** eine Mitgliedschaft in [„Der Circle zur ersten Million"](https://www.skool.com/der-circle-zur-ersten-million-6426), die schaltet die Börsenampel ebenfalls frei.
 - Für den **Circle-Tab**: Mitgliedschaft in [„Der Circle zur ersten Million"](https://www.skool.com/der-circle-zur-ersten-million-6426).
 
-Die beiden Bereiche sind **unabhängig** – eine der beiden Mitgliedschaften reicht, um den jeweiligen Teil zu nutzen. Fehlt der Zugang zu einem Bereich, zeigt dieser Tab bewusst keine Daten, sondern einen Hinweis, wie man beitreten kann; der andere Tab funktioniert normal weiter. Ohne Skool-Anmeldung zeigt das Add-on gar nichts an – deine Daten bleiben geschützt.
+Eine passende Mitgliedschaft reicht, um den jeweiligen Teil zu nutzen. Fehlt der Zugang zu einem Bereich, zeigt dieser Tab bewusst keine Daten, sondern einen Hinweis, wie man beitreten kann; der andere Tab funktioniert normal weiter. Ohne Skool-Anmeldung zeigt das Add-on gar nichts an – deine Daten bleiben geschützt.
 
 ## Installation
 

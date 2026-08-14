@@ -175,4 +175,26 @@ assert.equal(
   'ok',
 );
 
+// --- Phase 2: Datenroute + Body-Finder ---------------------------------------
+assert.equal(
+  ampelDataUrl('BUILD123', 'abc'),
+  'https://www.skool.com/_next/data/BUILD123/cybermoney-1123/classroom/8d4e7683.json?md=abc',
+);
+
+const descTree = { props: { pageProps: { course: {
+  course: { id: 'root', metadata: { title: 'Ampel' } },
+  children: [
+    { course: { id: 'sec1', metadata: { title: 'grüne Ampel' } }, children: [
+      { course: { id: 'stock1', metadata: { title: 'SAP', desc: '[v2][…]' } } },
+      { course: { id: 'stock2', metadata: { title: 'Ohne Body' } } },
+    ] },
+  ],
+} } } };
+assert.equal(findCourseDesc(descTree, 'stock1'), '[v2][…]', 'Body in der zweiten Ebene gefunden');
+assert.equal(findCourseDesc(descTree, 'stock2'), null, 'Modul da, aber ohne Body -> null');
+assert.equal(findCourseDesc(descTree, 'gibtsnicht'), undefined, 'unbekanntes Modul -> undefined');
+assert.equal(findCourseDesc(null, 'stock1'), undefined, 'kein Baum -> undefined');
+// _next/data-Antwortform ({pageProps} ohne props-Hülle) wird ebenso akzeptiert.
+assert.equal(findCourseDesc({ pageProps: descTree.props.pageProps }, 'stock1'), '[v2][…]');
+
 console.log('lifecycle.test.mjs: alle Assertions bestanden ✓');

@@ -41,8 +41,8 @@ function renderStatus() {
   // Eingeloggt, aber kein Mitglied -> VIP-Hinweis (Block darunter zeigt den Link).
   if (meta.lastPollOk === false && meta.access === 'noAccess') {
     el.innerHTML =
-      '<span class="status-head">Kein VIP-Zugang</span>' +
-      '<span class="status-hint">Angemeldet bist du – es fehlt nur die Mitgliedschaft.</span>';
+      '<span class="status-head">Kein Zugang zur Börsenampel</span>' +
+      '<span class="status-hint">Angemeldet bist du – es fehlt nur die Mitgliedschaft (VIP oder Circle).</span>';
     el.classList.add('error');
     return;
   }
@@ -305,9 +305,53 @@ function renderActivity() {
   }
 }
 
-function openStock(id) {
-  api.tabs.create({ url: stockUrl(id) });
+// --- Phase 2: Detailansicht -------------------------------------------------
+// Klick auf eine Aktie öffnet die Analyse direkt im Popup (Tier-2-Body via
+// Service-Worker, gecacht). Aktien, die es im aktuellen Snapshot nicht mehr
+// gibt (z. B. "Entfernt"-Einträge), öffnen weiterhin Skool.
+let detailStockId = null;
+
+function closeStockDetail() {
+  detailStockId = null;
+  document.getElementById('stockDetail').hidden = true;
+  document.getElementById('tab-ampel').classList.remove('detail-open');
 }
+
+async function openStock(id) {
+  const stocks = (state.current && state.current.stocks) || {};
+  const s = stocks[id];
+  if (!s) {
+    api.tabs.create({ url: stockUrl(id) });
+    return;
+  }
+  detailStockId = id;
+  document.getElementById('tab-ampel').classList.add('detail-open');
+  document.getElementById('stockDetail').hidden = false;
+  document.getElementById('detailName').textContent = s.name;
+  document.getElementById('detailDot').className = 'dot ' + colorOf(s);
+  document.getElementById('detailMeta').textContent =
+    (SECTION_LABEL[colorOf(s)] || s.section) +
+    ' · zuletzt bearbeitet ' + fmtTime(Date.parse(s.updatedAt));
+  document.getElementById('detailOpenSkool').href = stockUrl(id);
+
+  const body = document.getElementById('detailBody');
+  body.className = 'detail-body loading';
+  body.textContent = 'Lade Analyse…';
+  const r = await send({ type: 'getStockBody', id });
+  if (detailStockId !== id) return; // inzwischen weitergeklickt/geschlossen
+  if (r && r.ok) {
+    body.className = 'detail-body';
+    body.textContent = r.text || 'Dieses Modul hat keinen Textinhalt.';
+  } else {
+    body.className = 'detail-body error';
+    body.textContent =
+      'Analyse konnte nicht geladen werden' +
+      (r && r.error ? ' (' + r.error + ')' : '') +
+      ' – „In Skool öffnen" oben rechts geht trotzdem.';
+  }
+}
+
+document.getElementById('detailBack').addEventListener('click', closeStockDetail);
 
 // Ampel-Daten nur zeigen, wenn der letzte Abruf erfolgreich war (= eingeloggt).
 // So sind nach dem Ausloggen keine zwischengespeicherten Daten mehr sichtbar.
@@ -331,6 +375,8 @@ function renderAll() {
   const noAccess = !ok && state.meta && state.meta.access === 'noAccess';
   document.getElementById('ampelNoAccess').hidden = !noAccess;
   document.getElementById('ampelJoin').href = AMPEL_CONFIG.joinUrl;
+  // Auch eine Circle-Mitgliedschaft schaltet die Börsenampel frei.
+  document.getElementById('ampelJoinCircle').href = CIRCLE_CONFIG.joinUrl;
   if (ok) {
     renderChanges();
     renderHistory();
