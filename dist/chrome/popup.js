@@ -535,7 +535,12 @@ function renderCircleOpenTable(rows) {
   // Summenzeile: Einsatz, aktueller Gesamtwert (nur Positionen mit Kurs) und
   // Durchschnitts-Haltedauer — unvollständige Positionen bleiben, wie überall,
   // außen vor.
-  const sums = { buy: 0, buyAny: false, buyMatched: 0, cur: 0, curCount: 0, days: [] };
+  const sums = {
+    buy: 0, buyAny: false,
+    buyMatched: 0, cur: 0, curCount: 0,          // Akt. Kurs (nur Positionen mit Kurs)
+    buyMatchedTgt: 0, tgt: 0, tgtCount: 0,       // Kursziel (nur Positionen mit Ziel)
+    days: [],
+  };
   for (const p of rows) {
     const tr = posRow(p);
     tr.append(
@@ -594,6 +599,12 @@ function renderCircleOpenTable(rows) {
         sums.buyMatched += p.totalBuyEur;
         sums.curCount++;
       }
+      if (p.currentPrice != null && p.totalBuyEur != null) {
+        // Gesamtwert bei Erreichen aller Kursziele (gleiche Einheiten-Logik).
+        sums.tgt += p.qty != null ? p.qty * p.currentPrice : p.currentPrice;
+        sums.buyMatchedTgt += p.totalBuyEur;
+        sums.tgtCount++;
+      }
     }
 
     const chartCell = td('', 'chart-col');
@@ -641,6 +652,27 @@ function renderCircleOpenTable(rows) {
         : 'Heutiger Gesamtwert aller laufenden Positionen';
   } else {
     sumCur.textContent = '–';
+  }
+
+  // Kursziel-Summe: Gesamtwert, wenn alle Positionen ihr Ziel erreichen.
+  const sumTgt = document.getElementById('openSumTarget');
+  sumTgt.classList.remove('pos', 'neg');
+  sumTgt.title = '';
+  if (sums.tgtCount > 0) {
+    sumTgt.textContent = fmtEur(Math.round(sums.tgt * 100) / 100);
+    if (sums.buyMatchedTgt > 0) {
+      const pctVal = Math.round((sums.tgt / sums.buyMatchedTgt - 1) * 10000) / 100;
+      const cls = signClass(pctVal);
+      if (cls) sumTgt.classList.add(cls);
+      appendPct(sumTgt, pctVal);
+    }
+    sumTgt.title =
+      sums.tgtCount < rows.length
+        ? 'Gesamtwert bei Erreichen aller Kursziele – ' + sums.tgtCount + ' von ' + rows.length +
+          ' Positionen mit Kursziel (Einsatz dieser Positionen: ' + fmtEur(sums.buyMatchedTgt) + ')'
+        : 'Gesamtwert, wenn alle laufenden Positionen ihr Kursziel erreichen';
+  } else {
+    sumTgt.textContent = '–';
   }
 
   document.getElementById('openAvgDays').textContent = sums.days.length
