@@ -456,11 +456,15 @@ async function pollCircle(allowBlink = false) {
 // (ISIN > WKN > Name, Ergebnis dauerhaft gecacht), den Kurs holen (5-Min-Cache)
 // und nach Euro umrechnen. Alles defensiv — ohne Kurs zeigt das Popup "–".
 const QUOTE_TTL_MS = 5 * 60 * 1000;        // Kurse kurz cachen (Popup-Öffnungen)
-const SYMBOL_RETRY_MS = 24 * 60 * 60 * 1000; // gescheiterte Auflösung 1x/Tag neu
-const QUOTE_FETCH_DELAY_MS = 120;          // höflicher Abstand zwischen Abrufen
+// Gescheiterte Auflösungen nach 1 h erneut versuchen: ein Yahoo-Schluckauf
+// (Drosselung beim ersten großen Abruf) soll nicht einen ganzen Tag kleben
+// (live gesehen: Accor blieb dadurch auf "–", obwohl die Namenssuche geht).
+const SYMBOL_RETRY_MS = 60 * 60 * 1000;
+const QUOTE_FETCH_DELAY_MS = 250;          // höflicher Abstand (gegen 429-Drosselung)
 // Bei Änderungen an der Auflösungslogik hochzählen -> alte Cache-Einträge
-// werden neu aufgelöst (v2: Plausibilitätsprüfung gegen Kursziel/EK).
-const SYMBOL_RESOLVE_VERSION = 2;
+// werden neu aufgelöst (v2: Plausibilitätsprüfung; v3: hängengebliebene
+// Fehlversuche einmalig lösen).
+const SYMBOL_RESOLVE_VERSION = 3;
 
 async function resolveYahooSymbol(query) {
   const found = await fetchYahooSearch(query);
