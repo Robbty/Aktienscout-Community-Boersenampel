@@ -2,6 +2,13 @@
  * popup.js — rendert den Zustand aus dem Service-Worker.
  */
 
+// Frische-Fenster: war der letzte erfolgreiche Abruf jünger als das, zeigt das
+// Popup sofort die gespeicherten Daten und prüft nur im Hintergrund nach —
+// statt den Nutzer bei jedem Öffnen auf den Login-Check warten zu lassen.
+// (Bewusster Kompromiss zur Privacy-Regel: maximal 3 Minuten alte Daten
+// könnten kurz sichtbar sein, falls man sich exakt dazwischen ausgeloggt hat.)
+const FRESH_MS = 3 * 60 * 1000;
+
 const SECTION_ORDER = ['green', 'yellow', 'red', 'other'];
 const SECTION_LABEL = { green: 'Grüne Ampel', yellow: 'Gelbe Ampel', red: 'Rote Ampel', other: 'Sonstige' };
 
@@ -848,8 +855,26 @@ function renderCircle() {
 // Beim Öffnen des Circle-Tabs den Zugang frisch prüfen (und dabei nichts
 // Sensibles zeigen) — danach rendern.
 async function refreshCircle() {
-  hideCircleBlocks();
   quotesRequested = false; // manuelles Prüfen darf auch die Kurse auffrischen
+  const meta = state.circleMeta || {};
+  if (meta.lastPollOk === true && state.circle &&
+      Date.now() - (meta.lastPollAt || 0) < FRESH_MS) {
+    // Frisch genug -> sofort aus dem Speicher rendern, Abruf läuft nebenher
+    // (der Harvest holt ohnehin nur geänderte Modul-Texte nach).
+    circleChecked = true;
+    renderCircle();
+    send({ type: 'circlePollNow' }).then((r) => {
+      if (r) {
+        state.circle = r.circle;
+        state.circleMeta = r.circleMeta;
+        state.circleHistory = r.circleHistory || state.circleHistory;
+      }
+      if (activeTab === 'circle') renderCircle();
+    });
+    return;
+  }
+
+  hideCircleBlocks();
   setCircleStatus('Prüfe Zugang…', false);
   const r = await send({ type: 'circlePollNow' });
   if (r) {
@@ -896,7 +921,20 @@ document.getElementById('circleLogToggle').addEventListener('click', () => {
 // --- Init + Events ----------------------------------------------------------
 async function init() {
   state = await send({ type: 'getState' });
-  // Bei jedem Öffnen den Login-Status frisch prüfen und dabei keine alten Daten
+
+  const meta = state.meta || {};
+  if (meta.lastPollOk === true && Date.now() - (meta.lastPollAt || 0) < FRESH_MS) {
+    // Letzter Abruf war gerade eben erfolgreich -> sofort anzeigen, im
+    // Hintergrund trotzdem nachprüfen (aktualisiert die Anzeige still).
+    renderAll();
+    if (STANDALONE) switchTab('circle');
+    send({ type: 'pollNow' }).then((r) => {
+      if (r) { state = r; renderAll(); }
+    });
+    return;
+  }
+
+  // Sonst wie gehabt: erst den Login-Status prüfen und dabei keine alten Daten
   // anzeigen, bevor der Abruf bestätigt, dass wir noch eingeloggt sind.
   showChecking();
   const r = await send({ type: 'pollNow' });
