@@ -478,12 +478,17 @@ function appendPct(cell, pctVal) {
 let circleQuotes = null;   // moduleId -> {symbol, price, currency, priceEur, at}
 let lastOpenRows = [];
 let quotesRequested = false;
+let quotesLoading = false; // Lauf aktiv -> fehlende Kurse zeigen "…" statt "–"
 
 async function loadCircleQuotes() {
   if (quotesRequested) return;
   quotesRequested = true;
+  quotesLoading = true;
   const r = await send({ type: 'circleQuotes' });
-  circleQuotes = r && r.ok ? r.quotes || {} : {};
+  quotesLoading = false;
+  // Finale Antwort ist die Autorität; Zwischenstände kamen schon über den
+  // storage.onChanged-Listener (quotesLive) herein.
+  circleQuotes = r && r.ok ? r.quotes || {} : circleQuotes || {};
   if (activeTab === 'circle') renderCircleOpenTable(lastOpenRows);
 }
 
@@ -543,8 +548,9 @@ function renderCircleOpenTable(rows) {
     // Akt. Kurs: "…" solange die Kurse noch laden, "–" wenn keiner ermittelbar.
     const q = circleQuotes ? circleQuotes[p.id] : null;
     const ek = ekBaseOf(p);
-    const kurs = td(circleQuotes === null ? '…' : '–', 'num');
-    if (circleQuotes !== null && !q) {
+    const quotesPending = quotesLoading || circleQuotes === null;
+    const kurs = td(!q && quotesPending ? '…' : '–', 'num');
+    if (!q && !quotesPending) {
       kurs.title = 'Kein (plausibles) Yahoo-Symbol gefunden – wird beim nächsten Öffnen automatisch erneut versucht.';
     }
     if (q && q.priceEur != null) {
@@ -603,7 +609,7 @@ function renderCircleOpenTable(rows) {
       });
     } else {
       chartBtn.disabled = true;
-      chartBtn.title = circleQuotes === null ? 'Kurs-Chart – Kurse laden noch…' : 'Kurs-Chart – kein Yahoo-Symbol gefunden';
+      chartBtn.title = quotesPending ? 'Kurs-Chart – Kurse laden noch…' : 'Kurs-Chart – kein Yahoo-Symbol gefunden';
     }
     chartCell.appendChild(chartBtn);
     tr.appendChild(chartCell);
@@ -618,7 +624,7 @@ function renderCircleOpenTable(rows) {
   sumCur.classList.remove('pos', 'neg');
   sumCur.textContent = '';
   sumCur.title = '';
-  if (circleQuotes === null) {
+  if (sums.curCount === 0 && (quotesLoading || circleQuotes === null)) {
     sumCur.textContent = '…';
   } else if (sums.curCount > 0) {
     sumCur.textContent = fmtEur(Math.round(sums.cur * 100) / 100);
@@ -947,20 +953,30 @@ async function init() {
   if (STANDALONE) switchTab('circle');
 }
 
-// Standalone-Fenster lebt lange -> bei neuen Daten (Hintergrund-Alarm, anderes
-// Fenster) automatisch nachziehen. Auch die Privacy-Regel bleibt so wirksam:
-// meldet ein fehlgeschlagener Abruf lastPollOk=false, verbirgt sich die Ansicht.
-if (STANDALONE) {
-  api.storage.onChanged.addListener(async (changes, area) => {
-    if (area !== 'local') return;
-    if (!('circle' in changes || 'circleMeta' in changes || 'circleHistory' in changes)) return;
+// Auf Speicheränderungen reagieren:
+// - quotesLive (beide Ansichten): der Worker veröffentlicht jeden ermittelten
+//   Kurs sofort -> die betreffende Zeile füllt sich, statt dass die Spalte
+//   erst am Ende in einem Block umspringt.
+// - circle-Daten (nur Standalone): das langlebige Fenster zieht neue Abrufe
+//   automatisch nach; die Privacy-Regel bleibt wirksam (lastPollOk=false ->
+//   Ansicht verbirgt sich).
+api.storage.onChanged.addListener(async (changes, area) => {
+  if (area !== 'local') return;
+  if ('quotesLive' in changes) {
+    circleQuotes = { ...(changes.quotesLive.newValue || {}) };
+    if (activeTab === 'circle') renderCircleOpenTable(lastOpenRows);
+  }
+  if (STANDALONE && ('circle' in changes || 'circleMeta' in changes || 'circleHistory' in changes)) {
     const s = await send({ type: 'getState' });
     if (!s) return;
     state.circle = s.circle;
     state.circleMeta = s.circleMeta;
     state.circleHistory = s.circleHistory;
     if (activeTab === 'circle') renderCircle();
-  });
+  }
+});
+
+if (STANDALONE) {
   // Kommt das Fenster in den Vordergrund, ausstehende Ereignisse quittieren
   // (renderCircle löscht dann den goldenen Punkt).
   window.addEventListener('focus', () => {

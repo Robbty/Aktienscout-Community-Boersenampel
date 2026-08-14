@@ -512,6 +512,39 @@ async function getCircleQuotes() {
   const now = Date.now();
   const out = {};
 
+  // Progressive Anzeige: `quotesLive` wird nach jedem ermittelten Kurs
+  // geschrieben; das Popup lauscht per storage.onChanged und füllt die
+  // jeweilige Zeile sofort — statt alles erst am Ende in einem Block.
+  const isFresh = (q) => q && now - q.at <= QUOTE_TTL_MS;
+  const round2 = (n) => Math.round(n * 100) / 100;
+
+  // Vorbefüllung: alles, was ohne Netz-Abruf aus dem Cache beantwortbar ist,
+  // sofort sichtbar machen — Nachzügler tröpfeln dann einzeln nach.
+  for (const m of Object.values(circle.modules)) {
+    const ti = m.titleInfo || parseModuleTitle(m.title || '');
+    if (ti.kind === 'meta' || circleModuleClosed(m)) continue;
+    const entry = symbols[m.id];
+    if (!entry || entry.v !== SYMBOL_RESOLVE_VERSION || !entry.symbol) continue;
+    const qt = quotes[entry.symbol];
+    if (!isFresh(qt)) continue;
+    const norm = normalizeQuoteCurrency(qt.currency);
+    let priceEur;
+    if (norm.currency === 'EUR' || norm.currency === null) {
+      priceEur = convertToEur(qt.price, qt.currency, null);
+    } else {
+      const fx = quotes[fxPairSymbol(norm.currency)];
+      priceEur = isFresh(fx) ? convertToEur(qt.price, qt.currency, fx.price) : null;
+    }
+    out[m.id] = {
+      symbol: entry.symbol,
+      price: qt.price,
+      currency: qt.currency,
+      priceEur: priceEur != null ? round2(priceEur) : null,
+      at: qt.at,
+    };
+  }
+  await api.storage.local.set({ quotesLive: out });
+
   for (const m of Object.values(circle.modules)) {
     const ti = m.titleInfo || parseModuleTitle(m.title || '');
     if (ti.kind === 'meta' || circleModuleClosed(m)) continue;
@@ -574,9 +607,11 @@ async function getCircleQuotes() {
       symbol: entry.symbol,
       price: qt.price,
       currency: qt.currency,
-      priceEur: priceEur != null ? Math.round(priceEur * 100) / 100 : null,
+      priceEur: priceEur != null ? round2(priceEur) : null,
       at: qt.at,
     };
+    // Zwischenstand veröffentlichen -> die Zeile erscheint sofort im Popup.
+    await api.storage.local.set({ quotesLive: out });
   }
 
   await api.storage.local.set({ quoteSymbols: symbols, quotes });
