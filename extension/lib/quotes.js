@@ -119,6 +119,18 @@ function pickPlausibleQuote(candidates, anchorEur) {
   return bestDev <= Math.log(2) ? best : null;
 }
 
+// Passendes Yahoo-Intervall für ein freies Zeitfenster wählen.
+// spanSec = Fensterbreite, startAgeSec = wie weit der Fensterbeginn zurückliegt.
+// Yahoo-Limits: 5m-/15m-Daten reichen nur ~60 Tage zurück, 1h ~730 Tage.
+function pickChartInterval(spanSec, startAgeSec) {
+  const DAY = 86400;
+  const intradayOk = startAgeSec <= 55 * DAY;
+  if (spanSec <= 1.5 * DAY && intradayOk) return '5m';
+  if (spanSec <= 10 * DAY && intradayOk) return '15m';
+  if (spanSec <= 90 * DAY && startAgeSec <= 700 * DAY) return '1h';
+  return '1d';
+}
+
 // --- Währung ------------------------------------------------------------------
 
 // Yahoo notiert Londoner Kurse in Pence (GBp/GBX) -> auf GBP normalisieren.
@@ -174,6 +186,7 @@ if (typeof globalThis !== 'undefined') {
   globalThis.yahooChartUrl = yahooChartUrl;
   globalThis.yahooChartUrlPeriod = yahooChartUrlPeriod;
   globalThis.pickPlausibleQuote = pickPlausibleQuote;
+  globalThis.pickChartInterval = pickChartInterval;
   globalThis.yahooSearchUrl = yahooSearchUrl;
   globalThis.parseYahooChartMeta = parseYahooChartMeta;
   globalThis.parseYahooChartSeries = parseYahooChartSeries;

@@ -13,7 +13,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 runInThisContext(readFileSync(join(here, '..', 'extension', 'lib', 'quotes.js'), 'utf8'));
 const {
   yahooChartUrl, yahooChartUrlPeriod, yahooSearchUrl, parseYahooChartMeta,
-  parseYahooChartSeries, pickYahooSymbol, pickPlausibleQuote,
+  parseYahooChartSeries, pickYahooSymbol, pickPlausibleQuote, pickChartInterval,
   normalizeQuoteCurrency, fxPairSymbol, convertToEur,
 } = globalThis;
 
@@ -33,6 +33,15 @@ assert.equal(
   'https://query1.finance.yahoo.com/v8/finance/chart/SAP.DE?period1=1700000000&period2=1700100000&interval=1h',
   'freies Zeitfenster, Sekunden abgerundet',
 );
+
+// --- Intervallwahl für freie Zeitfenster ----------------------------------------
+const DAY = 86400;
+assert.equal(pickChartInterval(12 * 3600, 12 * 3600), '5m', '12h-Fenster von heute');
+assert.equal(pickChartInterval(7 * DAY, 7 * DAY), '15m', 'eine Woche zurück');
+assert.equal(pickChartInterval(30 * DAY, 30 * DAY), '1h', 'ein Monat');
+assert.equal(pickChartInterval(7 * DAY, 100 * DAY), '1h', 'kurzes Fenster, aber zu alt für 15m');
+assert.equal(pickChartInterval(200 * DAY, 200 * DAY), '1d', 'lange Fenster in Tageskerzen');
+assert.equal(pickChartInterval(30 * DAY, 800 * DAY), '1d', 'älter als die 1h-Historie');
 
 // --- Plausibilitätsprüfung der Symbol-Kandidaten --------------------------------
 // Live-Fall Adidas: das Modul trägt die Allianz-ISIN -> der ISIN-Kandidat (441 €)

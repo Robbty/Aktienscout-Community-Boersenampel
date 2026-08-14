@@ -487,7 +487,7 @@ function openChartWindow(p, q) {
     url: api.runtime.getURL('chart.html') + '?' + params.toString(),
     type: 'popup',
     width: 560,
-    height: 440,
+    height: 500, // Platz für 45°-Achsenbeschriftung + Auswahl-Leiste (Brush)
   });
 }
 
