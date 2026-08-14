@@ -24,7 +24,7 @@ const api = globalThis.browser || globalThis.chrome;
 // Chrome (Service-Worker) lädt die geteilte Logik via importScripts. In Firefox
 // kommt sie über das background.scripts-Array; dort gibt es kein importScripts.
 if (typeof importScripts === 'function') {
-  importScripts('lib/debug.js', 'lib/ampel.js', 'lib/circle.js');
+  importScripts('lib/debug.js', 'lib/ampel.js', 'lib/circle.js', 'lib/quotes.js');
 }
 
 const DEFAULTS = { intervalMinutes: 60, blinkEnabled: true, activityDays: 7 };
@@ -451,6 +451,88 @@ async function pollCircle(allowBlink = false) {
   }
 }
 
+// --- Phase 3: Yahoo-Kurse für die laufenden Circle-Positionen ------------------
+// Auf Anfrage des Popups: je offener Position das Yahoo-Symbol auflösen
+// (ISIN > WKN > Name, Ergebnis dauerhaft gecacht), den Kurs holen (5-Min-Cache)
+// und nach Euro umrechnen. Alles defensiv — ohne Kurs zeigt das Popup "–".
+const QUOTE_TTL_MS = 5 * 60 * 1000;        // Kurse kurz cachen (Popup-Öffnungen)
+const SYMBOL_RETRY_MS = 24 * 60 * 60 * 1000; // gescheiterte Auflösung 1x/Tag neu
+const QUOTE_FETCH_DELAY_MS = 120;          // höflicher Abstand zwischen Abrufen
+
+async function resolveYahooSymbol(query) {
+  const found = await fetchYahooSearch(query);
+  return found ? pickYahooSymbol(found) : null;
+}
+
+// Kurs (mit TTL-Cache in `quotes`) holen; verändert das übergebene Objekt.
+async function cachedYahooQuote(quotes, symbol, now) {
+  const hit = quotes[symbol];
+  if (hit && now - hit.at <= QUOTE_TTL_MS) return hit;
+  await sleep(QUOTE_FETCH_DELAY_MS);
+  const fresh = await fetchYahooQuote(symbol);
+  if (!fresh) return hit || null; // lieber ein alter Kurs als gar keiner
+  const entry = { ...fresh, at: now };
+  quotes[symbol] = entry;
+  return entry;
+}
+
+async function getCircleQuotes() {
+  if (globalThis.DEBUG_SIMULATE && globalThis.DEBUG_SIMULATE.circle) {
+    return { ok: false, error: 'TEST-Schalter aktiv (lib/debug.js)' };
+  }
+  const { circle } = await getState();
+  if (!circle || !circle.modules) return { ok: false, error: 'Keine Circle-Daten' };
+
+  const stored = await api.storage.local.get(['quoteSymbols', 'quotes']);
+  const symbols = stored.quoteSymbols || {}; // moduleId -> {symbol|null, query, resolvedAt/failedAt}
+  const quotes = stored.quotes || {};        // symbol -> {price, currency, at, …}
+  const now = Date.now();
+  const out = {};
+
+  for (const m of Object.values(circle.modules)) {
+    const ti = m.titleInfo || parseModuleTitle(m.title || '');
+    if (ti.kind === 'meta' || circleModuleClosed(m)) continue;
+
+    // 1) Symbol auflösen (einmalig; Fehlschläge erst nach 24 h erneut).
+    let entry = symbols[m.id];
+    if (!entry || (!entry.symbol && now - (entry.failedAt || 0) > SYMBOL_RETRY_MS)) {
+      const query = (m.trade && (m.trade.isin || m.trade.wkn)) || ti.name;
+      await sleep(QUOTE_FETCH_DELAY_MS);
+      const symbol = query ? await resolveYahooSymbol(query) : null;
+      entry = symbol
+        ? { symbol, query, resolvedAt: now }
+        : { symbol: null, query, failedAt: now };
+      symbols[m.id] = entry;
+    }
+    if (!entry.symbol) continue;
+
+    // 2) Kurs holen (TTL-Cache).
+    const qt = await cachedYahooQuote(quotes, entry.symbol, now);
+    if (!qt) continue;
+
+    // 3) Nach Euro umrechnen (FX-Kurs kommt aus derselben API, gleicher Cache).
+    let priceEur = null;
+    const norm = normalizeQuoteCurrency(qt.currency);
+    if (norm.currency === 'EUR' || norm.currency === null) {
+      priceEur = convertToEur(qt.price, qt.currency, null);
+    } else {
+      const fx = await cachedYahooQuote(quotes, fxPairSymbol(norm.currency), now);
+      priceEur = fx ? convertToEur(qt.price, qt.currency, fx.price) : null;
+    }
+
+    out[m.id] = {
+      symbol: entry.symbol,
+      price: qt.price,
+      currency: qt.currency,
+      priceEur: priceEur != null ? Math.round(priceEur * 100) / 100 : null,
+      at: qt.at,
+    };
+  }
+
+  await api.storage.local.set({ quoteSymbols: symbols, quotes });
+  return { ok: true, quotes: out };
+}
+
 // --- Phase 2: Rich-Text-Body einer Aktie (Tier 2) -----------------------------
 // Der Analyse-Text steckt NICHT im Kursbaum-JSON, sondern wird von Skool pro
 // Modul geliefert (gleiches Muster wie die Circle-Bodies). Abruf auf Klick im
@@ -637,6 +719,10 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         }
         await ingestSnapshot(msg.snapshot, 'page', true);
         sendResponse({ ok: true });
+        break;
+      }
+      case 'circleQuotes': {
+        sendResponse(await getCircleQuotes());
         break;
       }
       case 'getStockBody': {

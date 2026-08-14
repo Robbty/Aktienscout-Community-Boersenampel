@@ -18,6 +18,7 @@ Ein Browser-Add-on, das die **Börsenampel** der [Aktienscout-Community](https:/
 - 🕒 **Statuswechsel-Logbuch** – eine eigene Historie der Ampel-Wechsel der letzten *X* Tage (die Skool-Seite selbst hat keine Historie).
 - 🔔 **Benachrichtigung + blinkendes Symbol**, wenn sich etwas tut.
 - 💼 **Circle-Tab** – wertet zusätzlich die Aktienengagements der Community [„Der Circle zur ersten Million"](https://www.skool.com/der-circle-zur-ersten-million-6426) aus: investiertes Kapital (gesamt + aktuell im Markt), realisierte Gewinne und das Potenzial der laufenden Positionen bis zum jeweiligen Kursziel. Braucht nur die Mitgliedschaft **dort** – unabhängig von der Aktienscout-Mitgliedschaft; ohne Zugang zeigt der Tab, wie man beitreten kann.
+- 📈 **Aktuelle Kurse & Charts** – die laufenden Circle-Positionen zeigen zusätzlich den aktuellen Börsenkurs (Yahoo Finance, in €, mit Veränderung zum Einkaufspreis in %). Der 📈-Knopf je Position öffnet ein eigenes Chart-Fenster mit wählbarem Zeitraum sowie Einkaufs- und Kursziel-Linie.
 - 🟡 **Circle-Meldungen** – bei einem neuen Kauf oder Verkauf gibt es eine Benachrichtigung, ein Logbuch-Eintrag („Käufe & Verkäufe") und einen **goldenen Punkt oben links** auf dem Symbol. So bleiben die Zeichen getrennt und gleichzeitig sichtbar: rote Zahl unten rechts = Ampel-Änderungen, goldener Punkt oben links = Circle-Kauf/-Verkauf, beides zusammen = beides. Der Punkt verschwindet, sobald du den Circle-Tab öffnest.
 - 🔒 **Privat** – liest nur deine eigene, eingeloggte Skool-Sitzung; nichts wird irgendwohin gesendet.
 
@@ -37,7 +38,7 @@ Auswertung mit den vier Summen, dazu die Positions-Listen (auf-/zuklappbar) – 
 - Für den **Ampel-Tab**: VIP-Mitgliedschaft in der [Aktienscout-Community](https://www.skool.com/cybermoney-1123) – **oder** eine Mitgliedschaft in [„Der Circle zur ersten Million"](https://www.skool.com/der-circle-zur-ersten-million-6426), die schaltet die Börsenampel ebenfalls frei.
 - Für den **Circle-Tab**: Mitgliedschaft in [„Der Circle zur ersten Million"](https://www.skool.com/der-circle-zur-ersten-million-6426).
 
-Eine passende Mitgliedschaft reicht, um den jeweiligen Teil zu nutzen. Fehlt der Zugang zu einem Bereich, zeigt dieser Tab bewusst keine Daten, sondern einen Hinweis, wie man beitreten kann; der andere Tab funktioniert normal weiter. Ohne Skool-Anmeldung zeigt das Add-on gar nichts an – deine Daten bleiben geschützt.
+Eine passende Mitgliedschaft reicht, um den jeweiligen Teil zu nutzen. Die Kursdaten (Yahoo Finance) brauchen keine Anmeldung; in **Firefox** müssen die Website-Berechtigungen des Add-ons ggf. unter `about:addons` → Berechtigungen erlaubt werden, sonst bleibt die Kurs-Spalte leer. Fehlt der Zugang zu einem Bereich, zeigt dieser Tab bewusst keine Daten, sondern einen Hinweis, wie man beitreten kann; der andere Tab funktioniert normal weiter. Ohne Skool-Anmeldung zeigt das Add-on gar nichts an – deine Daten bleiben geschützt.
 
 ## Installation
 

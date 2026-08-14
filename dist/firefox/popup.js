@@ -453,10 +453,43 @@ function appendPct(cell, pctVal) {
   cell.appendChild(pct);
 }
 
-// Spalten: Aktie | Stück | EK-Preis | Einsatz | Akt. Kurs | Kursziel | Tage | Chart.
-// "Akt. Kurs" (echter Börsenkurs, mit % zum EK) und der Chart-Knopf sind
-// Platzhalter, bis in Phase 3 eine Kurs-API angebunden ist. Das Kursziel ist
-// der vom Autor im Modultitel gepflegte geplante Verkaufskurs.
+// --- Phase 3: Yahoo-Kurse -----------------------------------------------------
+// Der Worker löst je offener Position das Yahoo-Symbol auf und liefert den
+// aktuellen Kurs in Euro (circleQuotes-Nachricht, TTL-Cache im Worker). Das
+// Popup rendert die Tabelle sofort ("…") und füllt die Kurs-Spalte nach.
+let circleQuotes = null;   // moduleId -> {symbol, price, currency, priceEur, at}
+let lastOpenRows = [];
+let quotesRequested = false;
+
+async function loadCircleQuotes() {
+  if (quotesRequested) return;
+  quotesRequested = true;
+  const r = await send({ type: 'circleQuotes' });
+  circleQuotes = r && r.ok ? r.quotes || {} : {};
+  if (activeTab === 'circle') renderCircleOpenTable(lastOpenRows);
+}
+
+// Basis der %-Angabe: EK je Aktie; ohne Stück-Angabe ist der Kaufpreis die
+// Einheit des Titels (Heidelberg/Accor-Format, siehe computePortfolio).
+function ekBaseOf(p) {
+  return p.buyPriceEur != null ? p.buyPriceEur : p.qty == null ? p.totalBuyEur : null;
+}
+
+function openChartWindow(p, q) {
+  const params = new URLSearchParams({ symbol: q.symbol, name: p.name });
+  const ek = ekBaseOf(p);
+  if (ek != null) params.set('buy', String(ek));
+  if (p.currentPrice != null) params.set('target', String(p.currentPrice));
+  api.windows.create({
+    url: api.runtime.getURL('chart.html') + '?' + params.toString(),
+    type: 'popup',
+    width: 780,
+    height: 540,
+  });
+}
+
+// Spalten: Aktie | Stück | EK-Preis | Einsatz | Akt. Kurs (Yahoo, mit % zum EK)
+// | Kursziel (geplanter Verkaufskurs des Autors, mit Potenzial-%) | Tage | Chart.
 function renderCircleOpenTable(rows) {
   const sec = document.getElementById('circleOpen');
   const tbody = sec.querySelector('tbody');
@@ -470,8 +503,27 @@ function renderCircleOpenTable(rows) {
       td(p.qty != null ? String(p.qty) : '–', 'num'),
       td(p.buyPriceEur != null ? fmtEur(p.buyPriceEur) : '–', 'num'),
       td(p.totalBuyEur != null ? fmtEur(p.totalBuyEur) : '–', 'num'),
-      td('–', 'num'), // Akt. Kurs: Kursquelle folgt in Phase 3
     );
+
+    // Akt. Kurs: "…" solange die Kurse noch laden, "–" wenn keiner ermittelbar.
+    const q = circleQuotes ? circleQuotes[p.id] : null;
+    const ek = ekBaseOf(p);
+    const kurs = td(circleQuotes === null ? '…' : '–', 'num');
+    if (q && q.priceEur != null) {
+      kurs.textContent = fmtEur(q.priceEur);
+      kurs.title =
+        q.symbol +
+        (q.currency && q.currency !== 'EUR'
+          ? ' · ' + q.price.toLocaleString('de-DE') + ' ' + q.currency
+          : '');
+      if (ek != null && ek > 0) {
+        const pctVal = Math.round((q.priceEur / ek - 1) * 10000) / 100;
+        const cls = signClass(pctVal);
+        if (cls) kurs.classList.add(cls);
+        appendPct(kurs, pctVal);
+      }
+    }
+    tr.appendChild(kurs);
 
     // Kursziel, darunter das Potenzial in % bezogen auf den Einsatz.
     const ziel = td(p.currentPrice != null ? fmtEur(p.currentPrice) : '–', 'num');
@@ -493,8 +545,16 @@ function renderCircleOpenTable(rows) {
     chartBtn.className = 'chart-btn';
     chartBtn.type = 'button';
     chartBtn.textContent = '📈';
-    chartBtn.disabled = true;
-    chartBtn.title = 'Kurs-Chart – folgt in Phase 3';
+    if (q && q.symbol) {
+      chartBtn.title = 'Kurs-Chart öffnen (' + q.symbol + ')';
+      chartBtn.addEventListener('click', (e) => {
+        e.stopPropagation(); // nicht zusätzlich das Skool-Modul öffnen
+        openChartWindow(p, q);
+      });
+    } else {
+      chartBtn.disabled = true;
+      chartBtn.title = circleQuotes === null ? 'Kurs-Chart – Kurse laden noch…' : 'Kurs-Chart – kein Yahoo-Symbol gefunden';
+    }
     chartCell.appendChild(chartBtn);
     tr.appendChild(chartCell);
 
@@ -695,7 +755,9 @@ function renderCircle() {
   const closed = pf.positions.filter((p) => p.status === 'closed');
   renderCircleLog(meta.pending || 0);
   renderCircleClosedTable(closed); // steht im Popup vor den laufenden Positionen
+  lastOpenRows = open;
   renderCircleOpenTable(open);
+  loadCircleQuotes(); // füllt die Akt.-Kurs-Spalte nach, sobald Yahoo antwortet
   renderCircleUnparseable(pf.unparseable);
 
   setCircleStatus(
@@ -714,6 +776,7 @@ function renderCircle() {
 // Sensibles zeigen) — danach rendern.
 async function refreshCircle() {
   hideCircleBlocks();
+  quotesRequested = false; // manuelles Prüfen darf auch die Kurse auffrischen
   setCircleStatus('Prüfe Zugang…', false);
   const r = await send({ type: 'circlePollNow' });
   if (r) {

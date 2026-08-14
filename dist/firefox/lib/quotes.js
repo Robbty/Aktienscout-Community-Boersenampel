@@ -1,0 +1,149 @@
+/*
+ * quotes.js — Kursdaten über die (inoffizielle) Yahoo-Finance-Chart-API.
+ *
+ * Wie ampel.js/circle.js bewusst KEIN ES-Modul: wird via importScripts
+ * (Chrome-SW), background.scripts (Firefox), <script> (Popup/Chart-Fenster)
+ * geladen; alles liegt auf globalThis.
+ *
+ * Warum Yahoo: einzige dauerhaft kostenlose Quelle ohne API-Key mit
+ * Chart-Historie UND allen EU-Börsen (XETRA .DE, Paris .PA, Stockholm .ST …).
+ * Inoffiziell -> alle Aufrufe defensiv, bei Ausfall zeigt das Popup "–".
+ * Die Fetches laufen aus Extension-Kontexten mit host_permissions auf
+ * query1/query2.finance.yahoo.com, dadurch greift CORS nicht.
+ */
+
+const QUOTES_CONFIG = {
+  chartBase: 'https://query1.finance.yahoo.com/v8/finance/chart/',
+  searchBase: 'https://query2.finance.yahoo.com/v1/finance/search',
+};
+
+function yahooChartUrl(symbol, range, interval) {
+  return (
+    QUOTES_CONFIG.chartBase + encodeURIComponent(symbol) +
+    '?range=' + encodeURIComponent(range || '1d') +
+    '&interval=' + encodeURIComponent(interval || '1d')
+  );
+}
+
+function yahooSearchUrl(query) {
+  return QUOTES_CONFIG.searchBase + '?q=' + encodeURIComponent(query) + '&quotesCount=8&newsCount=0';
+}
+
+// --- Antwort-Parser (pur, testbar) -------------------------------------------
+
+// Aktueller Kurs + Währung aus einer Chart-Antwort. null bei Fehlern.
+function parseYahooChartMeta(json) {
+  const r = json && json.chart && json.chart.result && json.chart.result[0];
+  const meta = r && r.meta;
+  if (!meta || typeof meta.regularMarketPrice !== 'number') return null;
+  return {
+    symbol: meta.symbol || null,
+    price: meta.regularMarketPrice,
+    currency: meta.currency || null,
+    previousClose: typeof meta.chartPreviousClose === 'number' ? meta.chartPreviousClose : null,
+  };
+}
+
+// Zeitreihe (Schlusskurse) aus einer Chart-Antwort; Lücken (null) werden
+// herausgefiltert. { timestamps: [Sekunden], closes: [] } oder null.
+function parseYahooChartSeries(json) {
+  const r = json && json.chart && json.chart.result && json.chart.result[0];
+  const ts = r && r.timestamp;
+  const closes =
+    r && r.indicators && r.indicators.quote && r.indicators.quote[0] &&
+    r.indicators.quote[0].close;
+  if (!Array.isArray(ts) || !Array.isArray(closes)) return null;
+  const outT = [];
+  const outC = [];
+  for (let i = 0; i < ts.length; i++) {
+    if (typeof closes[i] === 'number' && isFinite(closes[i])) {
+      outT.push(ts[i]);
+      outC.push(closes[i]);
+    }
+  }
+  return outT.length ? { timestamps: outT, closes: outC } : null;
+}
+
+// Bestes Symbol aus einer Yahoo-Suchantwort wählen. Bevorzugt Aktien und
+// darunter €-nahe Listings: XETRA (.DE) vor sonstigen deutschen Plätzen vor
+// dem ersten Treffer (Heimatbörse). null, wenn nichts Brauchbares dabei ist.
+function pickYahooSymbol(searchJson) {
+  const quotes = (searchJson && searchJson.quotes) || [];
+  const equities = quotes.filter(
+    (q) => q && q.symbol && (q.quoteType === 'EQUITY' || q.quoteType === 'ETF'),
+  );
+  if (!equities.length) return null;
+  const score = (q) => {
+    const s = q.symbol;
+    if (/\.DE$/.test(s)) return 3; // XETRA, EUR, liquide
+    if (/\.(F|SG|BE|MU|DU|HM|HA)$/.test(s)) return 2; // sonstige dt. Plätze (EUR)
+    return 1; // Heimatbörse / erster Treffer
+  };
+  let best = equities[0];
+  for (const q of equities) if (score(q) > score(best)) best = q;
+  return best.symbol;
+}
+
+// --- Währung ------------------------------------------------------------------
+
+// Yahoo notiert Londoner Kurse in Pence (GBp/GBX) -> auf GBP normalisieren.
+function normalizeQuoteCurrency(currency) {
+  if (currency === 'GBp' || currency === 'GBX') return { currency: 'GBP', scale: 0.01 };
+  return { currency: currency || null, scale: 1 };
+}
+
+// FX-Symbol für die Umrechnung nach Euro: 'EURUSD=X' = USD je 1 EUR.
+function fxPairSymbol(currency) {
+  return 'EUR' + currency + '=X';
+}
+
+// Kurs in fremder Währung -> Euro. fxPerEur = Einheiten der (normalisierten)
+// Währung je 1 EUR (Kurs von fxPairSymbol). null, wenn nicht umrechenbar.
+function convertToEur(price, currency, fxPerEur) {
+  if (typeof price !== 'number' || !isFinite(price)) return null;
+  const norm = normalizeQuoteCurrency(currency);
+  if (norm.currency === 'EUR' || norm.currency === null) return price * norm.scale;
+  if (typeof fxPerEur !== 'number' || !isFinite(fxPerEur) || fxPerEur <= 0) return null;
+  return (price * norm.scale) / fxPerEur;
+}
+
+// --- Fetch-Helfer (Extension-Kontexte) ----------------------------------------
+
+async function fetchYahooQuote(symbol) {
+  try {
+    const res = await fetch(yahooChartUrl(symbol, '1d', '1d'), {
+      headers: { 'Accept': 'application/json' },
+    });
+    if (!res.ok) return null;
+    return parseYahooChartMeta(await res.json());
+  } catch (e) {
+    return null;
+  }
+}
+
+async function fetchYahooSearch(query) {
+  try {
+    const res = await fetch(yahooSearchUrl(query), {
+      headers: { 'Accept': 'application/json' },
+    });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (e) {
+    return null;
+  }
+}
+
+// In Service-Worker, Popup und Chart-Fenster gleichermaßen erreichbar machen.
+if (typeof globalThis !== 'undefined') {
+  globalThis.QUOTES_CONFIG = QUOTES_CONFIG;
+  globalThis.yahooChartUrl = yahooChartUrl;
+  globalThis.yahooSearchUrl = yahooSearchUrl;
+  globalThis.parseYahooChartMeta = parseYahooChartMeta;
+  globalThis.parseYahooChartSeries = parseYahooChartSeries;
+  globalThis.pickYahooSymbol = pickYahooSymbol;
+  globalThis.normalizeQuoteCurrency = normalizeQuoteCurrency;
+  globalThis.fxPairSymbol = fxPairSymbol;
+  globalThis.convertToEur = convertToEur;
+  globalThis.fetchYahooQuote = fetchYahooQuote;
+  globalThis.fetchYahooSearch = fetchYahooSearch;
+}
