@@ -24,13 +24,19 @@ Ein Browser-Add-on, das die **Börsenampel** der [Aktienscout-Community](https:/
 
 ### Der Circle-Tab in Bildern
 
-Auswertung mit den vier Summen, dazu die Positions-Listen (auf-/zuklappbar) – laufende Positionen mit Stück, Einkaufspreis, Einsatz, **aktuellem Börsenkurs** (Yahoo Finance, mit % zum Einkauf), Kursziel (der vom Autor geplante Verkaufskurs, mit Potenzial in %), Tagen seit Kauf und 📈-Knopf für das Chart-Fenster; abgeschlossene mit Ertrag, Prozent, Haltedauer und Summenzeile. *(Die Screenshots zeigen noch eine ältere Version mit schmalerem Fenster.)*
+Auswertung mit den vier Summen, dazu die Positions-Listen (auf-/zuklappbar) – laufende Positionen mit Stück, Einkaufspreis, Einsatz, **aktuellem Börsenkurs** (Yahoo Finance, mit % zum Einkauf), Kursziel (der vom Autor geplante Verkaufskurs, mit Potenzial in %), Tagen seit Kauf, Summenzeile und 📈-Knopf für das Chart-Fenster; abgeschlossene mit Ertrag, Prozent, Haltedauer und Summenzeile:
 
 <p align="center">
-  <img src="docs/screenshot-circle-uebersicht.png" alt="Circle: Auswertung" width="270">
-  <img src="docs/screenshot-circle-offen.png" alt="Circle: laufende Positionen" width="270">
-  <img src="docs/screenshot-circle-abgeschlossen.png" alt="Circle: abgeschlossene Positionen" width="270">
+  <img src="docs/V0.5.4/Circle-laufende-Positionen-Top.png" alt="Circle: laufende Positionen (oben)" width="340">
+  <img src="docs/V0.5.4/Circle-laufende-Positionen-bottom.png" alt="Circle: laufende Positionen (unten)" width="340">
 </p>
+
+<p align="center">
+  <img src="docs/V0.3.0/screenshot-circle-uebersicht.png" alt="Circle: Auswertung" width="270">
+  <img src="docs/V0.3.0/screenshot-circle-abgeschlossen.png" alt="Circle: abgeschlossene Positionen" width="270">
+</p>
+
+*(Die unteren beiden Bilder stammen noch aus einer älteren Version mit schmalerem Fenster.)*
 
 ## Voraussetzungen
 
