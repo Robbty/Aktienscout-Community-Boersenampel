@@ -3,6 +3,8 @@
 Ein Browser-Add-on, das die **Börsenampel** der [Aktienscout-Community](https://www.skool.com/cybermoney-1123) auf Skool im Auge behält und dir zeigt, **was sich seit deinem letzten Besuch geändert hat** – ohne dass du ständig selbst nachschauen musst. Zusätzlich wertet es die **Aktienengagements** der Community [„Der Circle zur ersten Million"](https://www.skool.com/der-circle-zur-ersten-million-6426) aus (beides unabhängig voneinander nutzbar).
 
 > 👉 **Du bist kein Entwickler?** Dann nimm die **[Anleitung in einfacher Sprache](ANLEITUNG.md)**.
+>
+> 📱 **Neu – auch als Android-App:** [neueste Version herunterladen](https://github.com/Robbty/Aktienscout-Community-Boersenampel/releases/latest) · **[Installations-Anleitung in einfacher Sprache](ANLEITUNG-APP.md)**
 
 <p align="center">
   <img src="docs/screenshot-uebersicht.png" alt="Übersicht" width="340">
@@ -17,7 +19,7 @@ Ein Browser-Add-on, das die **Börsenampel** der [Aktienscout-Community](https:/
 - 🆕 **„Seit deinem letzten Besuch"** – neue, gewechselte, entfernte Aktien auf einen Blick.
 - 🕒 **Statuswechsel-Logbuch** – eine eigene Historie der Ampel-Wechsel der letzten *X* Tage (die Skool-Seite selbst hat keine Historie).
 - 🔔 **Benachrichtigung + blinkendes Symbol**, wenn sich etwas tut.
-- 💼 **Circle-Tab** – wertet zusätzlich die Aktienengagements der Community [„Der Circle zur ersten Million"](https://www.skool.com/der-circle-zur-ersten-million-6426) aus: investiertes Kapital (gesamt + aktuell im Markt), realisierte Gewinne und das Potenzial der laufenden Positionen bis zum jeweiligen Kursziel. Braucht nur die Mitgliedschaft **dort** – unabhängig von der Aktienscout-Mitgliedschaft; ohne Zugang zeigt der Tab, wie man beitreten kann.
+- 💼 **Circle-Tab** – wertet zusätzlich die Aktienengagements der Community [„Der Circle zur ersten Million"](https://www.skool.com/der-circle-zur-ersten-million-6426) aus: investiertes Kapital (gesamt + aktuell im Markt), realisierte Gewinne und das Potenzial der laufenden Positionen bis zum jeweiligen Kursziel. Die Positions-Tabellen haben ein **Suchfeld** und lassen sich per Klick auf die **Spaltenköpfe sortieren** (zweiter Klick dreht die Richtung; Summenzeilen folgen dem Filter). Braucht nur die Mitgliedschaft **dort** – unabhängig von der Aktienscout-Mitgliedschaft; ohne Zugang zeigt der Tab, wie man beitreten kann.
 - 📈 **Aktuelle Kurse & Charts** – die laufenden Circle-Positionen zeigen zusätzlich den aktuellen Börsenkurs (Yahoo Finance, in €, mit Veränderung zum Einkaufspreis in %). Der 📈-Knopf je Position öffnet ein eigenes Chart-Fenster mit frei wählbarem Zeitraum (Auswahl-Leiste), Einkaufs- und Kursziel-Linie.
 - 🪟 **Circle als eigenes Fenster** – beim ersten Chart-Klick (oder über „In eigenem Fenster öffnen ↗") verwandelt sich die Circle-Ansicht in ein eigenständiges Fenster, das offen bleibt, bis du es schließt. Es zeigt dieselben Daten, aktualisiert sich automatisch mit, und aus ihm heraus öffnen sich weitere Charts direkt im Vordergrund.
 - 🟡 **Circle-Meldungen** – bei einem neuen Kauf oder Verkauf gibt es eine Benachrichtigung, ein Logbuch-Eintrag („Käufe & Verkäufe") und einen **goldenen Punkt oben links** auf dem Symbol. So bleiben die Zeichen getrennt und gleichzeitig sichtbar: rote Zahl unten rechts = Ampel-Änderungen, goldener Punkt oben links = Circle-Kauf/-Verkauf, beides zusammen = beides. Der Punkt verschwindet, sobald du den Circle-Tab öffnest.
@@ -28,8 +30,8 @@ Ein Browser-Add-on, das die **Börsenampel** der [Aktienscout-Community](https:/
 Auswertung mit den vier Summen, dazu die Positions-Listen (auf-/zuklappbar) – laufende Positionen mit Stück, Einkaufspreis, Einsatz, **aktuellem Börsenkurs** (Yahoo Finance, mit % zum Einkauf), Kursziel (der vom Autor geplante Verkaufskurs, mit Potenzial in %), Tagen seit Kauf, Summenzeile und 📈-Knopf für das Chart-Fenster; abgeschlossene mit Ertrag, Prozent, Haltedauer und Summenzeile:
 
 <p align="center">
-  <img src="docs/V0.5.4/Circle-laufende-Positionen-Top.png" alt="Circle: laufende Positionen (oben)" width="340">
-  <img src="docs/V0.5.4/Circle-laufende-Positionen-bottom.png" alt="Circle: laufende Positionen (unten)" width="340">
+  <img src="docs/V0.6.5/Circle-laufende-Positionen-Top.png" alt="Circle: laufende Positionen (oben)" width="340">
+  <img src="docs/V0.6.5/Circle-laufende-Positionen-Bottom.png" alt="Circle: laufende Positionen (unten)" width="340">
 </p>
 
 <p align="center">
@@ -69,6 +71,14 @@ Die fertigen, ladefertigen Ordner liegen unter `dist/`.
 > ℹ️ In Firefox ist das ein *temporäres* Add-on: Es verschwindet beim Schließen des Browsers und muss dann erneut geladen werden. Für eine dauerhafte Installation müsste das Add-on über einen Mozilla-Account signiert werden (`web-ext sign`).
 
 Anschließend auf das Ampel-Symbol klicken und **„Jetzt prüfen"** – der erste Lauf setzt die Vergleichsbasis, ab dann werden Änderungen erkannt.
+
+## Android-App 📱
+
+Die komplette Börsenampel gibt es auch als Android-App (gleiche Oberfläche, gleiche Auswertung): einmal mit dem Skool-Konto anmelden, fertig – auf Wunsch mit **Benachrichtigungen auch bei geschlossener App**. Neue Versionen meldet die App von selbst.
+
+- **Herunterladen:** [neueste Version (APK)](https://github.com/Robbty/Aktienscout-Community-Boersenampel/releases/latest)
+- **Schritt-für-Schritt-Anleitung:** [ANLEITUNG-APP.md](ANLEITUNG-APP.md)
+- **Technik/Entwickler:** [`app/README.md`](app/README.md) – ein Capacitor-WebView-Wrapper um denselben `extension/`-Code (`cd app && npm install && npm run build && npm run apk`).
 
 ## Wie es funktioniert (kurz)
 

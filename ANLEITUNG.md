@@ -2,6 +2,10 @@
 
 Diese Anleitung ist für alle ohne Technik-Kram. Kurze Sätze. Schritt für Schritt. Los geht's!
 
+> 📱 **Du willst die Börsenampel lieber auf dem Handy?** Es gibt sie auch als
+> Android-App – mit eigener einfacher Anleitung: **[ANLEITUNG-APP.md](ANLEITUNG-APP.md)**.
+> Diese Seite hier erklärt die Variante für den Computer-Browser.
+
 ---
 
 ## Was ist das?
@@ -99,6 +103,12 @@ Das Add-on rechnet alles für dich zusammen:
 - 🔮 **Potenzial (Kursziel)** – was drin ist, wenn alle laufenden Positionen ihr Kursziel erreichen.
 
 Darunter siehst du jede Position einzeln. Klick drauf – und sie öffnet sich in Skool.
+
+**Neu: Suchen und Sortieren.** 🔎 Über den Tabellen gibt es ein Suchfeld –
+tippe einen Namen an, und beide Tabellen zeigen nur noch die Treffer (die
+Summenzeile rechnet dann nur diese zusammen). Und ein Klick auf eine
+**Spaltenüberschrift** sortiert die Tabelle – ein zweiter Klick dreht die
+Richtung um. Der kleine Pfeil zeigt dir, wonach gerade sortiert ist.
 
 **Neu: echte Börsenkurse.** 📊 Bei den laufenden Positionen siehst du jetzt:
 
