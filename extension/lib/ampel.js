@@ -215,6 +215,34 @@ function pruneHistory(history, max) {
     .slice(history.length - max); // die ältesten nach Änderungsdatum fallen weg
 }
 
+// Fachlicher Schlüssel eines Logbuch-Eintrags: dasselbe Ereignis am selben Modul
+// zum selben Skool-Zeitpunkt ist ein Duplikat, egal wann wir es erkannt haben
+// (detectedAt bleibt außen vor).
+function historyKey(e) {
+  return [e.id || '', e.type || '', e.at || ''].join('|');
+}
+
+// Neue Ereignisse anhängen, aber bereits vorhandene (gleicher Schlüssel) still
+// verwerfen — heilt überlappende Polls und Worker-Neustarts nachträglich.
+function appendUniqueHistory(existing, incoming, max) {
+  const seen = new Set((existing || []).map(historyKey));
+  const fresh = (incoming || []).filter((e) => !seen.has(historyKey(e)));
+  if (!fresh.length) return existing || [];
+  return pruneHistory((existing || []).concat(fresh), max);
+}
+
+// Bestehende Duplikate entfernen (der zuerst geschriebene Eintrag gewinnt,
+// d. h. das früheste detectedAt bleibt stehen).
+function dedupeHistory(history) {
+  const seen = new Set();
+  return (history || []).filter((e) => {
+    const k = historyKey(e);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+}
+
 function diffCount(diff) {
   if (!diff) return 0;
   return (
@@ -237,4 +265,7 @@ if (typeof globalThis !== 'undefined') {
   globalThis.diffSnapshots = diffSnapshots;
   globalThis.diffCount = diffCount;
   globalThis.pruneHistory = pruneHistory;
+  globalThis.historyKey = historyKey;
+  globalThis.appendUniqueHistory = appendUniqueHistory;
+  globalThis.dedupeHistory = dedupeHistory;
 }

@@ -149,6 +149,31 @@ assert.equal(kept.some((e) => e.name === 'alt'), false, 'ältestes Datum ("alt")
 assert.deepEqual(kept.map((e) => e.name).sort(), ['mittel', 'neu'], 'die zwei jüngsten bleiben');
 assert.equal(pruneHistory(raw, 5), raw, 'unter dem Limit unverändert');
 
+// --- Logbuch-Dedup: gleiches Ereignis (id|type|at) nur einmal ---------------
+// Überlappende Polls konnten denselben Event-Batch doppelt anhängen (live
+// beobachtet im Käufe-&-Verkäufe-Log); appendUniqueHistory verwirft Bekanntes.
+const { appendUniqueHistory, dedupeHistory, historyKey } = globalThis;
+const logged = [
+  { id: 'a', type: 'bought', at: 't1', detectedAt: 'd1' },
+  { id: 'b', type: 'sold', at: 't2', detectedAt: 'd1' },
+];
+const again = [
+  { id: 'a', type: 'bought', at: 't1', detectedAt: 'd2' }, // Duplikat (später erkannt)
+  { id: 'c', type: 'bought', at: 't3', detectedAt: 'd2' }, // wirklich neu
+];
+const merged = appendUniqueHistory(logged, again, 10);
+assert.equal(merged.length, 3, 'Duplikat verworfen, Neues angehängt');
+assert.equal(merged.filter((e) => historyKey(e) === 'a|bought|t1').length, 1);
+assert.equal(merged[2].id, 'c');
+assert.equal(appendUniqueHistory(logged, again.slice(0, 1), 10), logged,
+  'nur Duplikate -> Logbuch bleibt unverändert (dasselbe Array)');
+
+// Einmalige Alt-Bereinigung: erster Eintrag (frühestes detectedAt) gewinnt.
+const dirty = [logged[0], logged[1], { ...logged[0], detectedAt: 'd9' }];
+const cleaned = dedupeHistory(dirty);
+assert.equal(cleaned.length, 2, 'Alt-Duplikat entfernt');
+assert.equal(cleaned[0].detectedAt, 'd1', 'der zuerst geschriebene Eintrag bleibt');
+
 // --- Zugangs-Klassifizierung + fester VIP-Link -------------------------------
 assert.equal(
   AMPEL_CONFIG.joinUrl,

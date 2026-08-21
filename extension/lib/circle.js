@@ -399,6 +399,14 @@ function circleModuleClosed(m) {
   return ti.kind === 'closed' || !!(m.trade && m.trade.closed);
 }
 
+// Platzhalter: der Autor legt leere Seiten an ("Neue Seite") und füllt sie erst
+// später. Ohne Titel-Preis/Tage UND ohne geparste Trade-Daten ist das (noch)
+// keine Position -> kein Kauf-/Entfernt-Ereignis.
+function circlePlaceholder(m) {
+  const ti = m.titleInfo || parseModuleTitle(m.title || '');
+  return ti.kind === 'plain' && !m.trade;
+}
+
 function diffCircleModules(oldModules, newModules) {
   const events = [];
   const olds = oldModules || {};
@@ -414,28 +422,33 @@ function diffCircleModules(oldModules, newModules) {
       name: ti.name,
       at: m.updatedAt || null, // Skool-Zeitstempel; Aufrufer ergänzt detectedAt
     };
+    const boughtEvent = () => ({ ...base, type: 'bought',
+      totalBuyEur: m.trade && m.trade.totalBuyEur != null ? m.trade.totalBuyEur : null,
+      qty: m.trade && m.trade.qty != null ? m.trade.qty : null });
+    const soldEvent = () => ({ ...base, type: 'sold',
+      ertragEur: m.trade && m.trade.ertragEur != null ? m.trade.ertragEur : null,
+      holdingDays: ti.holdingDays != null ? ti.holdingDays : null });
     if (!o) {
       // Neues Modul: offen = Kauf; bereits geschlossen = Kauf+Verkauf zwischen
-      // zwei Abrufen -> als Verkauf melden (das Endereignis).
+      // zwei Abrufen -> als Verkauf melden (das Endereignis). Platzhalter: nichts.
       if (closedNow) {
-        events.push({ ...base, type: 'sold',
-          ertragEur: m.trade && m.trade.ertragEur != null ? m.trade.ertragEur : null,
-          holdingDays: ti.holdingDays != null ? ti.holdingDays : null });
-      } else {
-        events.push({ ...base, type: 'bought',
-          totalBuyEur: m.trade && m.trade.totalBuyEur != null ? m.trade.totalBuyEur : null,
-          qty: m.trade && m.trade.qty != null ? m.trade.qty : null });
+        events.push(soldEvent());
+      } else if (!circlePlaceholder(m)) {
+        events.push(boughtEvent());
       }
     } else if (!circleModuleClosed(o) && closedNow) {
-      events.push({ ...base, type: 'sold',
-        ertragEur: m.trade && m.trade.ertragEur != null ? m.trade.ertragEur : null,
-        holdingDays: ti.holdingDays != null ? ti.holdingDays : null });
+      events.push(soldEvent());
+    } else if (circlePlaceholder(o) && !circlePlaceholder(m) && !closedNow) {
+      // Platzhalter wurde zur echten Position (Titel-Preis oder Trade-Daten
+      // kamen dazu) -> das ist der eigentliche Kauf.
+      events.push(boughtEvent());
     }
   }
 
   for (const o of Object.values(olds)) {
     const ti = o.titleInfo || parseModuleTitle(o.title || '');
     if (ti.kind === 'meta') continue;
+    if (circlePlaceholder(o)) continue; // gelöschter Platzhalter ist kein Ereignis
     if (!news[o.id]) events.push({ id: o.id, name: ti.name, at: null, type: 'removed' });
   }
 
@@ -468,6 +481,7 @@ if (typeof globalThis !== 'undefined') {
   globalThis.parseTradeBody = parseTradeBody;
   globalThis.parseStatistik = parseStatistik;
   globalThis.computePortfolio = computePortfolio;
+  globalThis.circlePlaceholder = circlePlaceholder;
   globalThis.diffCircleModules = diffCircleModules;
   globalThis.selectStaleModules = selectStaleModules;
 }

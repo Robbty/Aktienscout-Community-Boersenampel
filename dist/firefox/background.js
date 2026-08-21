@@ -133,9 +133,25 @@ async function appendHistory(delta) {
   for (const s of delta.sectionRemoved) push({ type: 'sectionRemoved', id: s.id, name: s.title, at: detectedAt });
   if (!events.length) return;
   const { history } = await getState();
-  // Bei Überlauf die ältesten Änderungen (nach Datum) verwerfen, nicht nur die
-  // zuerst eingefügten.
-  await api.storage.local.set({ history: pruneHistory(history.concat(events), HISTORY_MAX) });
+  // Bereits bekannte Ereignisse (gleicher Schlüssel) werden verworfen; bei
+  // Überlauf fallen die ältesten Änderungen (nach Datum) weg.
+  await api.storage.local.set({ history: appendUniqueHistory(history, events, HISTORY_MAX) });
+}
+
+// Einmalige Bereinigung (v0.6.6): überlappende Polls konnten Ereignisse doppelt
+// in die Logbücher schreiben, und leere Platzhalter-Seiten ("Neue Seite")
+// wurden fälschlich als Kauf gemeldet. Bestehende Einträge einmalig heilen.
+async function cleanupHistoryOnce() {
+  const { meta, history, circleHistory } = await getState();
+  if (meta.historyCleanupV1) return;
+  const cleanCircle = dedupeHistory(circleHistory).filter(
+    (e) => !(e.type === 'bought' && e.name === 'Neue Seite')
+  );
+  await api.storage.local.set({
+    history: dedupeHistory(history),
+    circleHistory: cleanCircle,
+  });
+  await setMeta({ historyCleanupV1: true });
 }
 
 async function setMeta(patch) {
@@ -196,7 +212,18 @@ async function ingestSnapshot(snapshot, source, allowBlink = false) {
 }
 
 // --- Hintergrund-Abruf ------------------------------------------------------
-async function pollViaFetch(allowBlink = false) {
+// In-flight-Guard: Alarm, Popup, Standalone-Fenster und "Jetzt prüfen" können
+// gleichzeitig anfragen. Ein zweiter Start während eines laufenden Polls würde
+// gegen denselben alten Zustand diffen und Ereignisse doppelt ins Logbuch
+// schreiben -> stattdessen hängen sich alle Aufrufer an den laufenden Poll.
+let ampelPollInFlight = null;
+function pollViaFetch(allowBlink = false) {
+  if (ampelPollInFlight) return ampelPollInFlight;
+  ampelPollInFlight = doPollViaFetch(allowBlink).finally(() => { ampelPollInFlight = null; });
+  return ampelPollInFlight;
+}
+
+async function doPollViaFetch(allowBlink = false) {
   // Test-Schalter (lib/debug.js): fehlenden Zugang bzw. Logout simulieren.
   const sim = (globalThis.DEBUG_SIMULATE && globalThis.DEBUG_SIMULATE.ampel) || null;
   if (sim === 'noAccess' || sim === 'loggedOut') {
@@ -342,7 +369,18 @@ async function notifyCircleEvents(events) {
   });
 }
 
-async function pollCircle(allowBlink = false) {
+// Gleicher In-flight-Guard wie beim Ampel-Poll (siehe pollViaFetch): der
+// Circle-Harvest läuft durch die gedrosselte Modul-Schleife 10–30 s — genug
+// Zeit für einen zweiten Trigger, der sonst denselben Event-Batch nochmal
+// anhängen würde (die live beobachteten Duplikate im Käufe-&-Verkäufe-Log).
+let circlePollInFlight = null;
+function pollCircle(allowBlink = false) {
+  if (circlePollInFlight) return circlePollInFlight;
+  circlePollInFlight = doPollCircle(allowBlink).finally(() => { circlePollInFlight = null; });
+  return circlePollInFlight;
+}
+
+async function doPollCircle(allowBlink = false) {
   // Test-Schalter (lib/debug.js): fehlenden Zugang bzw. Logout simulieren.
   const sim = (globalThis.DEBUG_SIMULATE && globalThis.DEBUG_SIMULATE.circle) || null;
   if (sim === 'noAccess' || sim === 'loggedOut') {
@@ -417,25 +455,34 @@ async function pollCircle(allowBlink = false) {
     const isFirstEver = Object.keys(oldModules).length === 0;
     const events = isFirstEver ? [] : diffCircleModules(oldModules, modules);
 
-    await api.storage.local.set({
-      circle: { courseTitle: index.courseTitle, buildId: effectiveBuildId, modules },
-    });
-
     const { circleMeta, circleHistory, settings } = await getState();
-    if (events.length) {
-      const detectedAt = new Date().toISOString();
-      const stamped = events.map((e) => ({ ...e, detectedAt, at: e.at || detectedAt }));
-      await api.storage.local.set({
-        circleHistory: pruneHistory(circleHistory.concat(stamped), CIRCLE_HISTORY_MAX),
-      });
-      await setCircleMeta({ pending: (circleMeta.pending || 0) + events.length });
-      await notifyCircleEvents(events);
+    // Bereits geloggte Ereignisse (gleicher fachlicher Schlüssel) nicht erneut
+    // melden — heilt z. B. einen Zustands-Rollback nach Worker-Tod.
+    const detectedAt = new Date().toISOString();
+    const known = new Set(circleHistory.map(historyKey));
+    const fresh = events
+      .map((e) => ({ ...e, detectedAt, at: e.at || detectedAt }))
+      .filter((e) => !known.has(historyKey(e)));
+
+    // Modul-Stand, Logbuch und Meta in EINEM Write: stirbt der Worker zwischen
+    // getrennten Writes, gingen sonst Ereignisse still verloren.
+    const toSet = {
+      circle: { courseTitle: index.courseTitle, buildId: effectiveBuildId, modules },
+      circleMeta: Object.assign({}, circleMeta,
+        { lastPollAt: Date.now(), lastPollOk: true, access: 'ok', lastError: null },
+        fresh.length ? { pending: (circleMeta.pending || 0) + fresh.length } : null),
+    };
+    if (fresh.length) {
+      toSet.circleHistory = pruneHistory(circleHistory.concat(fresh), CIRCLE_HISTORY_MAX);
+    }
+    await api.storage.local.set(toSet);
+
+    if (fresh.length) {
+      await notifyCircleEvents(fresh);
       if (allowBlink && settings.blinkEnabled) startBlink();
     }
-
-    await setCircleMeta({ lastPollAt: Date.now(), lastPollOk: true, access: 'ok', lastError: null });
     await refreshIcon(); // goldener Punkt an/aus, je nach unbestätigten Ereignissen
-    return { ok: true, access: 'ok', events: events.length };
+    return { ok: true, access: 'ok', events: fresh.length };
   } catch (e) {
     const msg = String(e.message || e);
     // Ohne gültige Session antwortet Skool mit 401/403 (live geprüft) ->
@@ -752,6 +799,7 @@ async function setActivityDays(days) {
 
 api.runtime.onInstalled.addListener(async () => {
   await ensureAlarm();
+  await cleanupHistoryOnce(); // Alt-Duplikate/Platzhalter-Käufe einmalig heilen
   await setIcon(ICON_ON);
   await pollViaFetch(false); // beim Installieren nicht blinken
   await pollCircle();
@@ -759,6 +807,7 @@ api.runtime.onInstalled.addListener(async () => {
 
 api.runtime.onStartup.addListener(async () => {
   await ensureAlarm();
+  await cleanupHistoryOnce();
   await setIcon(ICON_ON);
   await pollViaFetch(false); // beim Browserstart nicht blinken
   await pollCircle();

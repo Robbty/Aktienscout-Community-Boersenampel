@@ -367,6 +367,37 @@ assert.equal(flash[0].type, 'sold', 'bereits geschlossen aufgetaucht -> Verkauf'
 // Identische Stände -> keine Ereignisse.
 assert.deepEqual(diffCircleModules(before, before), [], 'nichts geändert -> nichts gemeldet');
 
+// Platzhalter-Seiten ("Neue Seite"): ohne Titel-Preis/Tage und ohne Trade-Daten
+// kein Ereignis — weder Kauf beim Auftauchen noch Entfernt beim Löschen.
+const withPlaceholder = { ...before, ph: circMod('ph', 'Neue Seite') };
+assert.deepEqual(diffCircleModules(before, withPlaceholder), [], 'Platzhalter taucht auf -> kein Kauf');
+assert.deepEqual(diffCircleModules(withPlaceholder, before), [], 'Platzhalter gelöscht -> kein Entfernt');
+
+// Platzhalter wird zur echten Position -> DAS ist der Kauf.
+const phOpen = diffCircleModules(withPlaceholder, {
+  ...before,
+  ph: circMod('ph', 'Neue Aktie [50,00 €]', { trade: { closed: false, qty: 3, totalBuyEur: 135 } }),
+});
+assert.equal(phOpen.length, 1);
+assert.equal(phOpen[0].type, 'bought', 'Platzhalter -> offene Position = Kauf');
+assert.equal(phOpen[0].totalBuyEur, 135, 'Kauf trägt die Kaufsumme');
+
+// Platzhalter, der direkt als geschlossen gepflegt wird -> Verkauf (Endereignis).
+const phClosed = diffCircleModules(withPlaceholder, {
+  ...before,
+  ph: circMod('ph', 'Neue Aktie [3 Tage]', { trade: { closed: true, totalBuyEur: 135, ertragEur: 12 } }),
+});
+assert.equal(phClosed.length, 1);
+assert.equal(phClosed[0].type, 'sold', 'Platzhalter -> geschlossen = Verkauf');
+
+// Position ohne Titel-Preis, aber mit geparsten Trade-Daten, ist KEIN Platzhalter.
+const bodyOnly = diffCircleModules(before, {
+  ...before,
+  bo: circMod('bo', 'Accor', { trade: { closed: false, totalBuyEur: 40 } }),
+});
+assert.equal(bodyOnly.length, 1);
+assert.equal(bodyOnly[0].type, 'bought', 'Trade-Daten ohne Titel-Preis -> trotzdem Kauf');
+
 // --- Inkrementelle Harvest-Auswahl --------------------------------------------------------
 const idx = buildCircleIndex({ props: { pageProps: { course: treeShape([
   { course: { id: 'a', updatedAt: 'u1', metadata: { title: 'A', hasAccess: 1 } } },
