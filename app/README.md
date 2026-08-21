@@ -44,11 +44,36 @@ blockiert — im Zweifel mit E-Mail/Passwort anmelden.
   Android-Zurück), nicht als eigenes Fenster.
 - Benachrichtigungen sind Android-Notifications (Berechtigung wird beim ersten
   Ereignis erfragt); sie entstehen, solange die App läuft (Polling-Intervall
-  wie eingestellt). Echtes Hintergrund-Polling bei geschlossener App ist als
-  nächster Schritt vorgesehen (Background Runner, `src/runner.js`).
+  wie eingestellt).
 
-## Installation aus GitHub-Release (Sideload)
+## Hintergrund-Benachrichtigungen (optional)
 
-APK aufs Handy übertragen, antippen, einmalig "Installation aus unbekannten
-Quellen" für den Dateimanager/Browser erlauben. Updates: neue APK einfach
-drüberinstallieren (gleiche Signatur nötig).
+Die Checkbox **"Hintergrund-Benachrichtigungen"** im Fußbereich aktiviert
+einen Background Runner (`src/runner.js`, WorkManager-basiert): auch bei
+geschlossener App wird periodisch gepollt (Android-Minimum ~15 min, der Runner
+respektiert das eingestellte Intervall; Doze kann Läufe verschieben) und bei
+Ampel-Änderungen bzw. Circle-Käufen/-Verkäufen eine Notification gezeigt.
+Der Runner hält bewusst einen eigenen Vergleichsstand (CapacitorKV) und
+bekommt das Session-Cookie von der App übergeben — läuft die Session ab,
+meldet er das einmalig und die App zeigt beim nächsten Öffnen den
+Login-Button.
+
+## Installation & Updates
+
+**Erstinstallation (Sideload):** APK aus dem GitHub-Release aufs Handy,
+antippen, einmalig "Installation aus unbekannten Quellen" erlauben. Ohne
+diesen Schritt geht es auf Android grundsätzlich nicht.
+
+**Updates:** Die App prüft täglich das jüngste GitHub-Release (Tag-Schema
+`app-vX.Y.Z`) und zeigt bei neuer Version einen Banner "Herunterladen" —
+Android installiert die geladene APK als Update (gleiche Signatur
+vorausgesetzt). Voll-Automatik: [Obtainium](https://github.com/ImranR98/Obtainium)
+installieren und die Repo-URL eintragen, dann kommen Updates von selbst.
+
+## Release bauen (Maintainer)
+
+`npm run apk-release` signiert mit `android/release.keystore`
+(Passwörter in `android/keystore.properties`, beides **git-ignoriert** —
+Keystore sicher aufbewahren, ohne ihn können bestehende Installationen kein
+Update mehr bekommen!). Dann `versionName` in `android/app/build.gradle`
+prüfen und `gh release create app-v<version> <apk>` ausführen.

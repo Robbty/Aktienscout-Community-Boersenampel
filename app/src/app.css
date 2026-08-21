@@ -38,3 +38,14 @@ button, input { touch-action: manipulation; }
 
 /* Login-Button im Header (von app.js eingefügt, wenn ausgeloggt). */
 #appLoginBtn { margin-top: 8px; }
+
+/* Update-Hinweis unterm Header (In-App-Updater in app.js). */
+#appUpdateBanner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #fff8e1;
+  border-bottom: 1px solid #e6d9a8;
+  font-size: 13px;
+}

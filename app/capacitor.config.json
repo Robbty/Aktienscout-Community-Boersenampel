@@ -4,6 +4,14 @@
   "webDir": "www",
   "plugins": {
     "CapacitorHttp": { "enabled": true },
-    "CapacitorCookies": { "enabled": true }
+    "CapacitorCookies": { "enabled": true },
+    "BackgroundRunner": {
+      "label": "de.aktienscout.boersenampel.poll",
+      "src": "runners/runner.js",
+      "event": "poll",
+      "repeat": true,
+      "interval": 60,
+      "autoStart": true
+    }
   }
 }

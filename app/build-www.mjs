@@ -73,8 +73,18 @@ if (!chart.includes('</body>')) throw new Error('chart.html: </body> nicht gefun
 chart = chart.replace('</body>', backSnippet);
 await writeFile(join(OUT, 'chart.html'), chart);
 
-// 5) Syntax-Check der generierten/kopierten Skripte.
-for (const f of ['background.iife.js', 'shim.js', 'app.js', 'popup.js']) {
+// 5) Background-Runner: lib/ampel.js + lib/circle.js + Runner-Glue in EINE
+//    Datei (der Runner hat kein importScripts; die libs sind DOM-frei).
+await mkdir(join(OUT, 'runners'), { recursive: true });
+const runnerParts = await Promise.all([
+  readFile(join(SRC, 'lib', 'ampel.js'), 'utf8'),
+  readFile(join(SRC, 'lib', 'circle.js'), 'utf8'),
+  readFile(join(here, 'src', 'runner.js'), 'utf8'),
+]);
+await writeFile(join(OUT, 'runners', 'runner.js'), runnerParts.join('\n'));
+
+// 6) Syntax-Check der generierten/kopierten Skripte.
+for (const f of ['background.iife.js', 'shim.js', 'app.js', 'popup.js', 'runners/runner.js']) {
   execFileSync(process.execPath, ['--check', join(OUT, f)]);
 }
 

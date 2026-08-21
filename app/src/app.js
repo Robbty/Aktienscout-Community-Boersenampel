@@ -73,6 +73,9 @@
     loginOpen = false;
     try { if (Plugins.InAppBrowser) await Plugins.InAppBrowser.close(); } catch (e) {}
     await send({ type: 'circlePollNow' });
+    // Frisches Session-Cookie auch dem Background-Runner mitgeben.
+    const st = await globalThis.browser.storage.local.get('appSettings');
+    if (st.appSettings && st.appSettings.bgNotify) await pushRunnerConfig(true);
     location.reload(); // sauberer Neustart der Ansicht mit eingeloggtem Zustand
   }
 
@@ -117,9 +120,127 @@
     });
   }
 
-  globalThis.browser.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && ('meta' in changes)) updateLoginButton();
+  globalThis.browser.storage.onChanged.addListener(async (changes, area) => {
+    if (area !== 'local') return;
+    if ('meta' in changes) updateLoginButton();
+    if ('settings' in changes) {
+      // Geändertes Poll-Intervall auch an den Background-Runner weiterreichen.
+      const st = await globalThis.browser.storage.local.get('appSettings');
+      if (st.appSettings && st.appSettings.bgNotify) pushRunnerConfig(true);
+    }
   });
+
+  // ---- Hintergrund-Benachrichtigungen (Background Runner) --------------------
+  // Der Runner läuft in eigener JS-Umgebung mit eigenem KV-Speicher; die App
+  // überträgt ihm Config + Session-Cookie per dispatchEvent (saveConfig).
+  const RUNNER_LABEL = 'de.aktienscout.boersenampel.poll';
+
+  async function cookieString() {
+    try {
+      if (!Plugins.CapacitorCookies) return '';
+      const map = await Plugins.CapacitorCookies.getCookies({ url: 'https://www.skool.com' });
+      return Object.entries(map || {}).map(([k, v]) => k + '=' + v).join('; ');
+    } catch (e) {
+      return '';
+    }
+  }
+
+  async function pushRunnerConfig(enabled) {
+    if (!Plugins.BackgroundRunner) return;
+    try {
+      const s = await send({ type: 'getState' });
+      await Plugins.BackgroundRunner.dispatchEvent({
+        label: RUNNER_LABEL,
+        event: 'saveConfig',
+        details: {
+          enabled: !!enabled,
+          cookie: await cookieString(),
+          intervalMinutes: (s && s.settings && s.settings.intervalMinutes) || 60,
+        },
+      });
+    } catch (e) { /* Runner optional (z. B. im Desktop-Browser) */ }
+  }
+
+  async function setBgNotify(enabled) {
+    if (enabled && Plugins.LocalNotifications) {
+      const req = await Plugins.LocalNotifications.requestPermissions().catch(() => null);
+      if (!req || req.display !== 'granted') enabled = false;
+    }
+    await globalThis.browser.storage.local.set({ appSettings: { bgNotify: enabled } });
+    await pushRunnerConfig(enabled);
+    return enabled;
+  }
+
+  async function injectBgToggle() {
+    const footer = document.querySelector('footer');
+    const pollBtn = document.getElementById('pollNow');
+    if (!footer || !pollBtn || document.getElementById('bgNotify')) return;
+    const label = document.createElement('label');
+    label.className = 'settings';
+    label.innerHTML = '<input id="bgNotify" type="checkbox" /> Hintergrund-Benachrichtigungen';
+    footer.insertBefore(label, pollBtn);
+    const box = label.querySelector('input');
+    const st = await globalThis.browser.storage.local.get('appSettings');
+    box.checked = !!(st.appSettings && st.appSettings.bgNotify);
+    box.addEventListener('change', async () => {
+      box.checked = await setBgNotify(box.checked);
+    });
+  }
+
+  // ---- In-App-Updater --------------------------------------------------------
+  // Prüft (max. 1×/Tag) das jüngste GitHub-Release (Tag-Schema app-vX.Y.Z)
+  // gegen die installierte Version. "Herunterladen" öffnet die APK-URL im
+  // System-Browser; der Android-Installer übernimmt (gleiche Signatur = Update).
+  const UPDATE_REPO = 'Robbty/Aktienscout-Community-Boersenampel';
+
+  function isNewerVersion(remote, local) {
+    const parse = (v) => String(v || '').split('.').map((n) => parseInt(n, 10) || 0);
+    const a = parse(remote);
+    const b = parse(local);
+    for (let i = 0; i < Math.max(a.length, b.length); i++) {
+      if ((a[i] || 0) > (b[i] || 0)) return true;
+      if ((a[i] || 0) < (b[i] || 0)) return false;
+    }
+    return false;
+  }
+  globalThis.__appUpdater = { isNewerVersion }; // für den Desktop-Rauchtest
+
+  function showUpdateBanner(version, url) {
+    if (document.getElementById('appUpdateBanner')) return;
+    const div = document.createElement('div');
+    div.id = 'appUpdateBanner';
+    div.innerHTML =
+      '<span>Version ' + version + ' verfügbar</span>' +
+      '<button type="button" class="link-btn" id="appUpdateGo">Herunterladen</button>' +
+      '<button type="button" class="link-btn" id="appUpdateLater">Später</button>';
+    const header = document.querySelector('header');
+    if (header && header.parentNode) header.parentNode.insertBefore(div, header.nextSibling);
+    div.querySelector('#appUpdateGo').addEventListener('click', () => {
+      if (Plugins.Browser) Plugins.Browser.open({ url });
+      else window.open(url, '_blank');
+    });
+    div.querySelector('#appUpdateLater').addEventListener('click', () => div.remove());
+  }
+
+  async function checkUpdate() {
+    try {
+      if (!Cap || !Plugins.App) return; // nur in der echten App sinnvoll
+      const st = await globalThis.browser.storage.local.get('appUpdate');
+      const checkedAt = (st.appUpdate && st.appUpdate.checkedAt) || 0;
+      if (Date.now() - checkedAt < 24 * 60 * 60 * 1000) return;
+      await globalThis.browser.storage.local.set({ appUpdate: { checkedAt: Date.now() } });
+      const info = await Plugins.App.getInfo();
+      const res = await fetch('https://api.github.com/repos/' + UPDATE_REPO + '/releases/latest', {
+        headers: { 'Accept': 'application/vnd.github+json' },
+      });
+      if (!res.ok) return; // z. B. 404, solange es noch kein Release gibt
+      const rel = await res.json();
+      const remote = String(rel.tag_name || '').replace(/^app-v/, '');
+      if (!remote || !isNewerVersion(remote, info.version)) return;
+      const apk = (rel.assets || []).find((a) => /\.apk$/i.test(a.name || ''));
+      showUpdateBanner(remote, apk ? apk.browser_download_url : rel.html_url);
+    } catch (e) { /* Updater ist reiner Komfort */ }
+  }
 
   // ---- Resume: veralteten Zustand neu laden ----------------------------------
   // Nach längerer Pause ist der angezeigte Stand alt; ein Reload nutzt das
@@ -139,4 +260,6 @@
   // Entspricht dem Browserstart: ensureAlarm + Erst-Polls im background-Code.
   globalThis.__appFireStartup();
   updateLoginButton();
+  injectBgToggle();
+  checkUpdate();
 })();
