@@ -1,0 +1,30 @@
+{
+  "name": "boersenampel-app",
+  "version": "1.0.0",
+  "description": "Android-App der Börsenampel (Capacitor-WebView-Wrapper)",
+  "scripts": {
+    "build": "node build-www.mjs && npx cap sync android",
+    "run": "npm run build && npx cap run android",
+    "apk": "npm run build && cd android && ./gradlew assembleDebug",
+    "apk-release": "npm run build && cd android && ./gradlew assembleRelease"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/background-runner": "^3.0.0",
+    "@capacitor/browser": "^8.0.4",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/inappbrowser": "^4.0.3",
+    "@capacitor/local-notifications": "^8.3.1",
+    "@capacitor/preferences": "^8.0.1"
+  },
+  "allowScripts": {
+    "@capacitor/background-runner@3.0.0": true
+  },
+  "private": true
+}

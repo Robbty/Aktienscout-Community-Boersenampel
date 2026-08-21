@@ -1,0 +1,9 @@
+{
+  "appId": "de.aktienscout.boersenampel",
+  "appName": "Börsenampel",
+  "webDir": "www",
+  "plugins": {
+    "CapacitorHttp": { "enabled": true },
+    "CapacitorCookies": { "enabled": true }
+  }
+}

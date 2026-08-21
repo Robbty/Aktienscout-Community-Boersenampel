@@ -1,0 +1,40 @@
+/*
+ * app.css — Mobile-Anpassungen über popup.css (lädt danach).
+ */
+
+/* Das Popup ist auf 640px festgenagelt; auf dem Handy bestimmt der Screen. */
+body {
+  width: auto;
+  min-width: 0;
+  max-width: 100vw;
+}
+
+/* Browser-only-Bedienelemente ausblenden:
+   - Blink-Option (es gibt kein Toolbar-Icon)
+   - "In eigenem Fenster öffnen" (die App IST das Fenster) */
+.blink-opt,
+.circle-window-hint { display: none !important; }
+
+/* Breite Tabellen (8 Spalten) scrollen innerhalb ihres Blocks. */
+.circle-block { overflow-x: auto; }
+.pos-table { min-width: 560px; }
+
+/* Fingerfreundliche Trefferflächen. */
+.tab { padding: 10px 14px; font-size: 14px; }
+.primary-btn { padding: 10px 14px; }
+button, input { touch-action: manipulation; }
+
+/* Roter Ampel-Zähler am Tab-Button (Ersatz fürs Toolbar-Badge). */
+.app-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 9px;
+  background: #d93025;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+/* Login-Button im Header (von app.js eingefügt, wenn ausgeloggt). */
+#appLoginBtn { margin-top: 8px; }
