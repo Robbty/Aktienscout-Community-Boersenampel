@@ -105,13 +105,17 @@
       <ul class="changes-list" id="circleLogList"></ul>
     </section>
 
+    <div class="searchbar circle-searchbar" id="circleSearchbar" hidden>
+      <input id="circleSearch" type="search" placeholder="Position suchen…" autocomplete="off" />
+    </div>
+
     <section id="circleClosed" class="circle-block" hidden>
       <div class="activity-head toggle" id="circleClosedToggle">
         <h2>Abgeschlossen <span class="group-count" id="circleClosedCount"></span></h2>
         <span class="chev">▾</span>
       </div>
       <table class="pos-table">
-        <thead><tr><th>Aktie</th><th class="num">Einsatz</th><th class="num">Ertrag</th><th class="num">Dauer</th></tr></thead>
+        <thead><tr><th data-sort="name">Aktie</th><th class="num" data-sort="einsatz">Einsatz</th><th class="num" data-sort="ertrag">Ertrag</th><th class="num" data-sort="dauer">Dauer</th></tr></thead>
         <tbody></tbody>
         <tfoot><tr><td>Summe</td><td class="num" id="closedSumBuy"></td><td class="num" id="closedSumErtrag"></td><td class="num" id="closedAvgDays"></td></tr></tfoot>
       </table>
@@ -124,13 +128,13 @@
       </div>
       <table class="pos-table">
         <thead><tr>
-          <th>Aktie</th>
-          <th class="num">Stück</th>
-          <th class="num" title="Einkaufspreis je Aktie">EK-Preis</th>
-          <th class="num">Einsatz</th>
-          <th class="num" title="Aktueller Börsenkurs in € (Yahoo Finance), mit Veränderung zum Einkaufspreis">Akt. Kurs</th>
-          <th class="num" title="Geplanter Verkaufskurs des Autors (aus dem Modultitel)">Kursziel</th>
-          <th class="num" title="Tage seit Kauf">Tage</th>
+          <th data-sort="name">Aktie</th>
+          <th class="num" data-sort="qty">Stück</th>
+          <th class="num" data-sort="ek" title="Einkaufspreis je Aktie">EK-Preis</th>
+          <th class="num" data-sort="einsatz">Einsatz</th>
+          <th class="num" data-sort="kurs" title="Aktueller Börsenkurs in € (Yahoo Finance), mit Veränderung zum Einkaufspreis. Sortiert nach der %-Veränderung.">Akt. Kurs</th>
+          <th class="num" data-sort="ziel" title="Geplanter Verkaufskurs des Autors (aus dem Modultitel). Sortiert nach dem Potenzial in %.">Kursziel</th>
+          <th class="num" data-sort="tage" title="Tage seit Kauf">Tage</th>
           <th class="chart-col" title="Kurs-Chart in eigenem Fenster"></th>
         </tr></thead>
         <tbody></tbody>

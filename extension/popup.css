@@ -218,4 +218,11 @@ body.standalone .circle-window-hint { display: none; }
 .join-btn { display: inline-block; text-decoration: none; }
 .join-row { display: flex; gap: 8px; justify-content: center; }
 
+/* Circle: Positions-Suche + sortierbare Spaltenköpfe */
+.circle-searchbar { margin: 10px 0 2px; }
+#circleSearch { width: 100%; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; }
+.pos-table th.sortable { cursor: pointer; user-select: none; }
+.pos-table th.sort-asc::after { content: ' ▲'; font-size: 8px; }
+.pos-table th.sort-desc::after { content: ' ▼'; font-size: 8px; }
+
 .hidden, [hidden] { display: none !important; }

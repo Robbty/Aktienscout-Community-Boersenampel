@@ -421,7 +421,75 @@ function showChecking() {
 // Die Auswertung (computePortfolio) läuft komplett hier im Popup über den vom
 // Worker geernteten Modul-Stand — nichts Aggregiertes wird persistiert, damit
 // Parser-Korrekturen rückwirkend alle Zahlen richtigstellen.
-const CIRCLE_BLOCKS = ['circleSummary', 'circleLog', 'circleOpen', 'circleClosed', 'circleUnparseable'];
+const CIRCLE_BLOCKS = ['circleSummary', 'circleLog', 'circleSearchbar', 'circleOpen', 'circleClosed', 'circleUnparseable'];
+
+// --- Suche & Spalten-Sortierung der Positions-Tabellen ------------------------
+// Beides wirkt rein auf die Anzeige (inkl. Summenzeile, die dann die gefilterten
+// Zeilen aufsummiert); die Daten selbst bleiben unangetastet.
+let circleFilter = '';
+const circleSort = { open: null, closed: null }; // je Tabelle {key, dir: 1|-1}
+
+function daysHeldOf(p) {
+  const ts = p.buyDate != null ? parseGermanDate(p.buyDate) : null;
+  return ts != null ? Math.max(0, Math.floor((Date.now() - ts) / 86400000)) : null;
+}
+
+// Sortierwerte je Spalte. "Akt. Kurs" und "Kursziel" sortieren nach den
+// %-Werten — absolute Kurse verschiedener Aktien sind nicht vergleichbar.
+const CIRCLE_SORT_VALUE = {
+  open: {
+    name: (p) => (p.name || '').toLowerCase(),
+    qty: (p) => p.qty,
+    ek: (p) => p.buyPriceEur,
+    einsatz: (p) => p.totalBuyEur,
+    kurs: (p) => {
+      const q = circleQuotes ? circleQuotes[p.id] : null;
+      const ek = ekBaseOf(p);
+      return q && q.priceEur != null && ek != null && ek > 0 ? q.priceEur / ek - 1 : null;
+    },
+    ziel: (p) => p.unrealizedPct,
+    tage: (p) => daysHeldOf(p),
+  },
+  closed: {
+    name: (p) => (p.name || '').toLowerCase(),
+    einsatz: (p) => p.totalBuyEur,
+    ertrag: (p) => p.ertragEur,
+    dauer: (p) => p.holdingDays,
+  },
+};
+
+function applyCircleView(rows, table) {
+  let out = rows;
+  const f = circleFilter.trim().toLowerCase();
+  if (f) out = out.filter((p) => (p.name || '').toLowerCase().includes(f));
+  const s = circleSort[table];
+  if (s) {
+    const val = CIRCLE_SORT_VALUE[table][s.key];
+    out = out.slice().sort((a, b) => {
+      const va = val(a);
+      const vb = val(b);
+      if (va == null && vb == null) return 0;
+      if (va == null) return 1; // fehlende Werte immer ans Ende, egal welche Richtung
+      if (vb == null) return -1;
+      return (va < vb ? -1 : va > vb ? 1 : 0) * s.dir;
+    });
+  }
+  return out;
+}
+
+// Pfeil-Anzeige im aktiven Spaltenkopf nachziehen.
+function markSortHeaders(table, secId) {
+  const s = circleSort[table];
+  for (const th of document.getElementById(secId).querySelectorAll('th[data-sort]')) {
+    th.classList.toggle('sort-asc', !!s && s.key === th.dataset.sort && s.dir === 1);
+    th.classList.toggle('sort-desc', !!s && s.key === th.dataset.sort && s.dir === -1);
+  }
+}
+
+function renderCircleTables() {
+  renderCircleClosedTable(lastClosedRows);
+  renderCircleOpenTable(lastOpenRows);
+}
 
 function fmtEur(n) {
   return Number(n).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
@@ -477,6 +545,7 @@ function appendPct(cell, pctVal) {
 // Popup rendert die Tabelle sofort ("…") und füllt die Kurs-Spalte nach.
 let circleQuotes = null;   // moduleId -> {symbol, price, currency, priceEur, at}
 let lastOpenRows = [];
+let lastClosedRows = [];
 let quotesRequested = false;
 let quotesLoading = false; // Lauf aktiv -> fehlende Kurse zeigen "…" statt "–"
 
@@ -526,12 +595,17 @@ function openChartWindow(p, q) {
 
 // Spalten: Aktie | Stück | EK-Preis | Einsatz | Akt. Kurs (Yahoo, mit % zum EK)
 // | Kursziel (geplanter Verkaufskurs des Autors, mit Potenzial-%) | Tage | Chart.
-function renderCircleOpenTable(rows) {
+function renderCircleOpenTable(allRows) {
   const sec = document.getElementById('circleOpen');
   const tbody = sec.querySelector('tbody');
   tbody.innerHTML = '';
-  sec.hidden = rows.length === 0;
-  document.getElementById('circleOpenCount').textContent = String(rows.length);
+  const rows = applyCircleView(allRows, 'open');
+  // Bei aktivem Filter bleibt die Sektion sichtbar (auch mit 0 Treffern),
+  // damit klar ist, dass gefiltert wird — Zähler zeigt dann "Treffer/gesamt".
+  sec.hidden = allRows.length === 0;
+  document.getElementById('circleOpenCount').textContent =
+    rows.length === allRows.length ? String(allRows.length) : rows.length + '/' + allRows.length;
+  markSortHeaders('open', 'circleOpen');
   // Summenzeile: Einsatz, aktueller Gesamtwert (nur Positionen mit Kurs) und
   // Durchschnitts-Haltedauer — unvollständige Positionen bleiben, wie überall,
   // außen vor.
@@ -681,12 +755,15 @@ function renderCircleOpenTable(rows) {
     : '–';
 }
 
-function renderCircleClosedTable(rows) {
+function renderCircleClosedTable(allRows) {
   const sec = document.getElementById('circleClosed');
   const tbody = sec.querySelector('tbody');
   tbody.innerHTML = '';
-  sec.hidden = rows.length === 0;
-  document.getElementById('circleClosedCount').textContent = String(rows.length);
+  const rows = applyCircleView(allRows, 'closed');
+  sec.hidden = allRows.length === 0;
+  document.getElementById('circleClosedCount').textContent =
+    rows.length === allRows.length ? String(allRows.length) : rows.length + '/' + allRows.length;
+  markSortHeaders('closed', 'circleClosed');
   for (const p of rows) {
     const tr = posRow(p);
     tr.append(
@@ -873,6 +950,8 @@ function renderCircle() {
   const open = pf.positions.filter((p) => p.status === 'open');
   const closed = pf.positions.filter((p) => p.status === 'closed');
   renderCircleLog(meta.pending || 0);
+  document.getElementById('circleSearchbar').hidden = open.length + closed.length === 0;
+  lastClosedRows = closed;
   renderCircleClosedTable(closed); // steht im Popup vor den laufenden Positionen
   lastOpenRows = open;
   renderCircleOpenTable(open);
@@ -1014,6 +1093,28 @@ if (STANDALONE) {
   window.addEventListener('focus', () => {
     if (activeTab === 'circle' && state && (state.circleMeta || {}).pending > 0) renderCircle();
   });
+}
+
+// Positions-Suche: filtert beide Tabellen (inkl. Summenzeilen) nach dem Namen.
+document.getElementById('circleSearch').addEventListener('input', (e) => {
+  circleFilter = e.target.value;
+  renderCircleTables();
+});
+
+// Klick auf einen Spaltenkopf sortiert; zweiter Klick dreht die Richtung.
+// Name startet aufsteigend, Zahlenspalten absteigend (Größtes zuerst).
+for (const [table, secId] of [['closed', 'circleClosed'], ['open', 'circleOpen']]) {
+  for (const th of document.getElementById(secId).querySelectorAll('th[data-sort]')) {
+    th.classList.add('sortable');
+    th.addEventListener('click', () => {
+      const key = th.dataset.sort;
+      const cur = circleSort[table];
+      circleSort[table] = cur && cur.key === key
+        ? { key, dir: -cur.dir }
+        : { key, dir: key === 'name' ? 1 : -1 };
+      renderCircleTables();
+    });
+  }
 }
 
 // ↗-Schalter (nur im Action-Popup sichtbar): Circle als eigenes Fenster öffnen.
