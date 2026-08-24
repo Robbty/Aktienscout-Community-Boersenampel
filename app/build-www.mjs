@@ -25,7 +25,7 @@ await rm(OUT, { recursive: true, force: true });
 await mkdir(OUT, { recursive: true });
 
 // 1) Unveränderte Teile kopieren.
-for (const name of ['popup.css', 'popup.js', 'chart.js', 'chart.css', 'lib', 'icons']) {
+for (const name of ['popup.css', 'popup.js', 'chart.js', 'chart.css', 'changelog.md', 'lib', 'icons']) {
   await cp(join(SRC, name), join(OUT, name), { recursive: true });
 }
 await cp(join(here, 'src', 'app.css'), join(OUT, 'app.css'));

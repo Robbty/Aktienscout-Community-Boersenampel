@@ -124,6 +124,10 @@ Wenn es eine neue Version gibt, zeigt die App oben einen Hinweis:
 Deine Anmeldung und Einstellungen bleiben dabei erhalten. Die Fragen zu
 „unbekannten Quellen" kommen beim Update nicht noch einmal.
 
+> 🔎 **Welche Version habe ich?** Ganz unten in der App steht **„App-Version X.Y.Z"**.
+> Tippe darauf – dann öffnet sich die **Update-Historie** mit allem, was sich
+> von Version zu Version geändert hat.
+
 ---
 
 ## Kurz gefragt ❓
@@ -157,3 +161,5 @@ Ja – als Browser-Erweiterung für Chrome und Firefox:
 ---
 
 Viel Freude mit der Börsenampel! 🚦📱
+
+Diese Anleitung gibt es auch als Web-Seite: [Börsenampel aufs Handy](https://claude.ai/code/artifact/cb33ae98-04d2-4d41-9d7d-4dc8222bca6a)

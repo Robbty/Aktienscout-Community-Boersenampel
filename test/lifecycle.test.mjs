@@ -222,4 +222,53 @@ assert.equal(findCourseDesc(null, 'stock1'), undefined, 'kein Baum -> undefined'
 // _next/data-Antwortform ({pageProps} ohne props-Hülle) wird ebenso akzeptiert.
 assert.equal(findCourseDesc({ pageProps: descTree.props.pageProps }, 'stock1'), '[v2][…]');
 
+// --- "Neue Seite"-Platzhalter erscheinen NIRGENDS ----------------------------
+// Live 08/2026: der Autor hat mehrere leere "Neue Seite"-Module auf Menüpunkt-
+// Ebene. Sie dürfen weder in den Snapshot noch in Diffs/Logbuch gelangen.
+const { hiddenPlaceholderTitle } = globalThis;
+assert.equal(hiddenPlaceholderTitle('Neue Seite'), true);
+assert.equal(hiddenPlaceholderTitle(' neue seite '), true, 'tolerant bei Groß-/Kleinschreibung und Leerraum');
+assert.equal(hiddenPlaceholderTitle('Neuigkeiten'), false);
+
+const withPlaceholders = buildSnapshot(nd([
+  { title: 'grüne Ampel', up: 'g1', stocks: [
+    { id: 'sap', name: 'SAP', up: 't1' },
+    { id: 'ph1', name: 'Neue Seite', up: 't9' }, // Platzhalter als "Aktie"
+  ] },
+  { title: 'Neue Seite', up: 'n1', stocks: [] }, // Platzhalter als Menüpunkt
+]));
+assert.equal(withPlaceholders.stockCount, 1, 'Platzhalter-Aktie zählt nicht mit');
+assert.equal(withPlaceholders.stocks.ph1, undefined, 'Platzhalter-Aktie nicht im Snapshot');
+assert.equal(
+  Object.values(withPlaceholders.sections).some((s) => s.title === 'Neue Seite'),
+  false,
+  'Platzhalter-Menüpunkt nicht im Snapshot',
+);
+
+// Alte, noch ungefiltert gespeicherte Snapshots (frühere Version) dürfen beim
+// Diff gegen neue, saubere Snapshots keine "Entfernt"-Fehlalarme erzeugen.
+const legacySnap = {
+  stockCount: 2,
+  stocks: {
+    sap: { id: 'sap', name: 'SAP', section: 'grüne Ampel', color: 'green', updatedAt: 't1' },
+    ph1: { id: 'ph1', name: 'Neue Seite', section: 'grüne Ampel', color: 'green', updatedAt: 't9' },
+  },
+  sections: {
+    'sec-grüne Ampel': { id: 'sec-grüne Ampel', title: 'grüne Ampel', color: 'green', updatedAt: 'g1', hasStocks: true },
+    'sec-Neue Seite': { id: 'sec-Neue Seite', title: 'Neue Seite', color: 'other', updatedAt: 'n1', hasStocks: false },
+  },
+};
+const dPh = diffSnapshots(legacySnap, withPlaceholders);
+assert.equal(diffCount(dPh), 0, 'Platzhalter-Verschwinden erzeugt keinerlei Diff');
+
+// Speicher-Migration: stripHiddenFromSnapshot löscht Platzhalter aus
+// gespeicherten Alt-Snapshots (background.js ruft das einmalig beim Start auf).
+const { stripHiddenFromSnapshot } = globalThis;
+const stripped = stripHiddenFromSnapshot(legacySnap);
+assert.deepEqual(Object.keys(stripped.stocks), ['sap'], 'Platzhalter-Aktie gelöscht');
+assert.equal(stripped.stockCount, 1, 'stockCount nachgeführt');
+assert.deepEqual(Object.keys(stripped.sections), ['sec-grüne Ampel'], 'Platzhalter-Menüpunkt gelöscht');
+assert.equal(stripHiddenFromSnapshot(stripped), stripped, 'sauberer Snapshot bleibt unangetastet (gleiche Referenz)');
+assert.equal(stripHiddenFromSnapshot(null), null, 'kein Snapshot -> kein Fehler');
+
 console.log('lifecycle.test.mjs: alle Assertions bestanden ✓');

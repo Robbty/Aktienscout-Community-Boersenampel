@@ -175,7 +175,19 @@
     </div>
     <label class="settings blink-opt"><input id="blink" type="checkbox" /> Bei Änderung blinken</label>
     <button id="pollNow" class="primary-btn">Jetzt prüfen</button>
+    <!-- Versionsnummer: lässt Nutzer nach einem Update prüfen, ob wirklich die
+         neue Version läuft (häufige Support-Frage). Klick -> Update-Historie. -->
+    <div class="version"><button id="version" class="link-btn" type="button" title="Update-Historie anzeigen"></button></div>
   </footer>
+
+  <!-- Update-Historie (aus changelog.md), liegt als Overlay über dem Popup. -->
+  <section id="changelog" class="changelog" hidden>
+    <div class="detail-head">
+      <button id="changelogBack" class="link-btn" type="button">‹ Zurück</button>
+      <span class="detail-meta">Update-Historie</span>
+    </div>
+    <div id="changelogBody" class="changelog-body"></div>
+  </section>
 
   <script src="lib/ampel.js"></script>
   <script src="lib/circle.js"></script>

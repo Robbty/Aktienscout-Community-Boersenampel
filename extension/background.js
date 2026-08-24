@@ -154,6 +154,31 @@ async function cleanupHistoryOnce() {
   await setMeta({ historyCleanupV1: true });
 }
 
+// Einmalige Speicher-Bereinigung: "Neue Seite"-Platzhalter aus allen gespeicherten
+// Altbeständen LÖSCHEN — Snapshots (baseline/current), beide Logbücher und die
+// Circle-Module. Neu ankommende Daten sind durch die Filter in buildSnapshot und
+// buildCircleIndex bereits sauber; das hier räumt nur auf, was ältere Versionen
+// geschrieben haben.
+async function cleanupPlaceholdersOnce() {
+  const { meta, baseline, current, history, circleHistory, circle } = await getState();
+  if (meta.placeholderCleanupV1) return;
+  const toSet = {
+    history: (history || []).filter((e) => !hiddenPlaceholderTitle(e.name)),
+    circleHistory: (circleHistory || []).filter((e) => !hiddenPlaceholderTitle(e.name)),
+  };
+  if (baseline) toSet.baseline = stripHiddenFromSnapshot(baseline);
+  if (current) toSet.current = stripHiddenFromSnapshot(current);
+  if (circle && circle.modules) {
+    const modules = {};
+    for (const [id, m] of Object.entries(circle.modules)) {
+      if (!hiddenPlaceholderTitle(m.title)) modules[id] = m;
+    }
+    toSet.circle = { ...circle, modules };
+  }
+  await api.storage.local.set(toSet);
+  await setMeta({ placeholderCleanupV1: true });
+}
+
 async function setMeta(patch) {
   const { meta } = await getState();
   await api.storage.local.set({ meta: Object.assign({}, meta, patch) });
@@ -282,6 +307,10 @@ async function doPollViaFetch(allowBlink = false) {
 const CIRCLE_HARVEST_CAP = 25;      // max. Modul-Abrufe pro Lauf (Kurs hat ~20)
 const CIRCLE_FETCH_DELAY_MS = 350;  // höflicher Abstand zwischen Modul-Abrufen
 const CIRCLE_HISTORY_MAX = 500;     // Kauf-/Verkaufs-Logbuch begrenzen
+// Bei Parser-Änderungen erhöhen: erzwingt einmalig das Neu-Holen/-Parsen aller
+// bereits geernteten Modul-Bodies (gespeichert wird nur das Parse-Ergebnis,
+// nicht der Rohtext — ohne Re-Harvest blieben alte Fehlparser-Stände liegen).
+const CIRCLE_PARSE_VERSION = 3;     // v3: Währung auch als "Euro"/"euro"/"EUR"
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -408,7 +437,7 @@ async function doPollCircle(allowBlink = false) {
       return { ok: false, access };
     }
 
-    const { circle } = await getState();
+    const { circle, circleMeta: metaBefore } = await getState();
     const oldModules = (circle && circle.modules) || {};
 
     // Neuen Modul-Stand aufbauen; bereits geparste Bodies wandern mit.
@@ -425,6 +454,14 @@ async function doPollCircle(allowBlink = false) {
         statistik: prev ? prev.statistik : null,
         parseError: prev ? prev.parseError : null,
       };
+    }
+
+    // Parser-Update: alle übernommenen Bodies als veraltet markieren, damit sie
+    // unten neu geholt und mit dem aktuellen Parser gelesen werden. Bricht der
+    // Harvest vorzeitig ab, bleibt bodyUpdatedAt null gespeichert und der Rest
+    // heilt bei den nächsten Polls nach.
+    if ((metaBefore.parseVersion || 1) < CIRCLE_PARSE_VERSION) {
+      for (const m of Object.values(modules)) m.bodyUpdatedAt = null;
     }
 
     // Bodies, die der Seitenabruf gratis mitgeliefert hat, sofort übernehmen.
@@ -462,14 +499,17 @@ async function doPollCircle(allowBlink = false) {
     const known = new Set(circleHistory.map(historyKey));
     const fresh = events
       .map((e) => ({ ...e, detectedAt, at: e.at || detectedAt }))
-      .filter((e) => !known.has(historyKey(e)));
+      .filter((e) => !known.has(historyKey(e)))
+      // "Neue Seite"-Platzhalter nie loggen/melden (soll nirgends erscheinen).
+      .filter((e) => !circleHiddenTitle(e.name));
 
     // Modul-Stand, Logbuch und Meta in EINEM Write: stirbt der Worker zwischen
     // getrennten Writes, gingen sonst Ereignisse still verloren.
     const toSet = {
       circle: { courseTitle: index.courseTitle, buildId: effectiveBuildId, modules },
       circleMeta: Object.assign({}, circleMeta,
-        { lastPollAt: Date.now(), lastPollOk: true, access: 'ok', lastError: null },
+        { lastPollAt: Date.now(), lastPollOk: true, access: 'ok', lastError: null,
+          parseVersion: CIRCLE_PARSE_VERSION },
         fresh.length ? { pending: (circleMeta.pending || 0) + fresh.length } : null),
     };
     if (fresh.length) {
@@ -599,7 +639,7 @@ async function getCircleQuotes() {
     // 1) Symbol auflösen (einmalig; Fehlschläge erst nach 24 h erneut).
     // Die Stammdaten der Module sind nicht immer sauber (live: Adidas-Modul
     // mit Allianz-ISIN) -> ISIN, WKN und Name werden ALLE probiert und der
-    // Kandidat gewählt, dessen Kurs zum Kursziel/EK der Position passt.
+    // Kandidat gewählt, dessen Kurs zum Titel-Tageskurs/EK der Position passt.
     let entry = symbols[m.id];
     const isStale =
       !entry ||
@@ -608,7 +648,7 @@ async function getCircleQuotes() {
     if (isStale) {
       const anchor =
         ti.currentPrice != null
-          ? ti.currentPrice // Kursziel des Autors (je Aktie, €)
+          ? ti.currentPrice // Tageskurs laut Titel (je Aktie, €) — als Anker ideal
           : m.trade && m.trade.buyPriceEur != null
             ? m.trade.buyPriceEur
             : m.trade && m.trade.qty == null && m.trade.totalBuyEur != null
@@ -800,6 +840,7 @@ async function setActivityDays(days) {
 api.runtime.onInstalled.addListener(async () => {
   await ensureAlarm();
   await cleanupHistoryOnce(); // Alt-Duplikate/Platzhalter-Käufe einmalig heilen
+  await cleanupPlaceholdersOnce(); // "Neue Seite" aus dem Speicher löschen
   await setIcon(ICON_ON);
   await pollViaFetch(false); // beim Installieren nicht blinken
   await pollCircle();
@@ -808,6 +849,7 @@ api.runtime.onInstalled.addListener(async () => {
 api.runtime.onStartup.addListener(async () => {
   await ensureAlarm();
   await cleanupHistoryOnce();
+  await cleanupPlaceholdersOnce();
   await setIcon(ICON_ON);
   await pollViaFetch(false); // beim Browserstart nicht blinken
   await pollCircle();

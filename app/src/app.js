@@ -222,6 +222,18 @@
     div.querySelector('#appUpdateLater').addEventListener('click', () => div.remove());
   }
 
+  // Versionszeile im Fuß (popup.js füllt sie aus dem Manifest — das gibt es in
+  // der App nicht). Der Klick-Handler von popup.js öffnet damit auch hier die
+  // Update-Historie (changelog.md wird vom Build mitkopiert).
+  async function showAppVersion() {
+    try {
+      if (!Cap || !Plugins.App) return;
+      const info = await Plugins.App.getInfo();
+      const el = document.getElementById('version');
+      if (el && info && info.version) el.textContent = 'App-Version ' + info.version;
+    } catch (e) { /* rein informativ */ }
+  }
+
   async function checkUpdate() {
     try {
       if (!Cap || !Plugins.App) return; // nur in der echten App sinnvoll
@@ -261,5 +273,6 @@
   globalThis.__appFireStartup();
   updateLoginButton();
   injectBgToggle();
+  showAppVersion();
   checkUpdate();
 })();

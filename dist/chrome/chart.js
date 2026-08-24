@@ -12,9 +12,14 @@
  *
  * Startansicht: Einkaufstag fast ganz links, heute ganz rechts.
  *
- * Der Chart läuft in der Währung der Börse (meta.currency). EK-/Kursziel-
- * Linien sind €-Werte: bei Fremdwährung werden sie mit dem aktuellen FX-Kurs
- * umgerechnet und als "≈" ausgewiesen.
+ * Die Kursdaten kommen in der Währung der Börse (meta.currency) — welche das
+ * ist, hängt davon ab, welches Yahoo-Listing die Symbolauflösung getroffen hat
+ * (Alibaba -> NYSE-ADR in USD, Adidas -> deutsche Börse in EUR). Angezeigt
+ * wird standardmäßig in EURO: Fremdwährungs-Kurse werden mit dem AKTUELLEN
+ * FX-Kurs umgerechnet (eine Näherung für die Vergangenheit, deshalb "≈").
+ * Ein Schalter im Kopf wechselt auf die Börsenwährung; dann werden statt-
+ * dessen die €-Referenzlinien (EK/Kursziel) umgerechnet und mit "≈" markiert.
+ * Ohne FX-Kurs bleibt es bei der Börsenwährung, der Schalter bleibt verborgen.
  */
 
 const params = new URLSearchParams(location.search);
@@ -48,6 +53,12 @@ let loadSeq = 0;       // Race-Schutz: nur die jüngste Antwort zählt
 let loading = false;
 let hoverIndex = null; // Datenpunkt unter der Maus (Tooltip)
 let layout = null;     // Plot-Geometrie des letzten draw() für die Maus-Zuordnung
+let usedFallback = false; // Detailfenster war leer -> letzter Handelstag gezeigt
+
+// Anzeigewährung: Euro (Standard) oder Börsenwährung; letzte Wahl merken.
+const CUR_PREF_KEY = 'chartCurrency';
+let showEur = true;
+try { showEur = localStorage.getItem(CUR_PREF_KEY) !== 'native'; } catch (e) {}
 
 const fmtNum = (n, digits = 2) =>
   Number(n).toLocaleString('de-DE', { minimumFractionDigits: digits, maximumFractionDigits: digits });
@@ -72,6 +83,56 @@ function refInChartCurrency(eur) {
   return (eur * fxPerEur) / norm.scale;
 }
 
+// Was wird gerade angezeigt? nativeEur = Börse notiert ohnehin in Euro;
+// canConvert = Fremdwährung UND FX-Kurs da; inEur = Achse/Kurve/Tooltip in €.
+function displayState() {
+  const norm = quoteMeta ? normalizeQuoteCurrency(quoteMeta.currency) : { currency: null, scale: 1 };
+  const nativeEur = norm.currency === 'EUR' || norm.currency === null;
+  const canConvert = !nativeEur && fxPerEur != null;
+  return { norm, nativeEur, canConvert, inEur: nativeEur || (showEur && canConvert) };
+}
+
+// Kurswert der Börse -> Anzeigewährung (Umkehrung von refInChartCurrency).
+function toDisplay(v) {
+  const s = displayState();
+  if (!s.inEur || s.nativeEur) return v;
+  return (v * s.norm.scale) / fxPerEur;
+}
+
+function displayUnit() {
+  return displayState().inEur ? '€' : ((quoteMeta && quoteMeta.currency) || '');
+}
+
+// €-Referenzwert in der Anzeigewährung: in € exakt, sonst umgerechnet.
+function refInDisplay(eur) {
+  if (eur == null || isNaN(eur)) return null;
+  return displayState().inEur ? eur : refInChartCurrency(eur);
+}
+
+function updateCurToggle() {
+  const el = document.getElementById('curToggle');
+  const s = displayState();
+  el.hidden = !s.canConvert;
+  if (!s.canConvert) return;
+  el.querySelector('[data-cur="native"]').textContent = quoteMeta.currency;
+  for (const b of el.querySelectorAll('button')) {
+    b.classList.toggle('active', (b.dataset.cur === 'eur') === showEur);
+  }
+}
+
+function updateMeta() {
+  const s = displayState();
+  let text = SYMBOL;
+  if (quoteMeta && quoteMeta.price != null) {
+    text += ' · aktuell ' + fmtNum(quoteMeta.price) + ' ' + (quoteMeta.currency || '');
+    if (s.canConvert) {
+      text += ' (≈ ' + fmtNum((quoteMeta.price * s.norm.scale) / fxPerEur) + ' €)';
+    }
+  }
+  if (usedFallback) text += ' · Börse geschlossen – letzter Handelstag';
+  setMeta(text);
+}
+
 function renderLegend() {
   const el = document.getElementById('chartLegend');
   el.innerHTML = '';
@@ -83,10 +144,25 @@ function renderLegend() {
     span.append(sw, document.createTextNode(label));
     el.appendChild(span);
   };
-  item('#1a73e8', false, 'Kurs (' + ((quoteMeta && quoteMeta.currency) || '?') + ')');
-  const approx = quoteMeta && normalizeQuoteCurrency(quoteMeta.currency).currency !== 'EUR' ? '≈ ' : '';
-  if (refInChartCurrency(BUY_EUR) != null) item('#5f6368', true, approx + 'Einkauf ' + fmtNum(BUY_EUR) + ' €');
-  if (refInChartCurrency(TARGET_EUR) != null) item('#d4a017', true, approx + 'Kursziel ' + fmtNum(TARGET_EUR) + ' €');
+  const s = displayState();
+  const curveLabel = s.inEur && !s.nativeEur
+    ? 'Kurs (≈ €, aus ' + quoteMeta.currency + ')'
+    : 'Kurs (' + ((quoteMeta && quoteMeta.currency) || '?') + ')';
+  item('#1a73e8', false, curveLabel);
+  const approx = s.inEur ? '' : '≈ ';
+  if (refInDisplay(BUY_EUR) != null) item('#5f6368', true, approx + 'Einkauf ' + fmtNum(BUY_EUR) + ' €');
+  if (refInDisplay(TARGET_EUR) != null) item('#d4a017', true, approx + 'Kursziel ' + fmtNum(TARGET_EUR) + ' €');
+
+  // Ehrlicher Hinweis: umgerechnet wird IMMER mit dem heutigen Wechselkurs,
+  // auch für vergangene Datenpunkte — historische FX-Kurse werden nicht geladen.
+  if (s.canConvert) {
+    const note = document.createElement('span');
+    note.className = 'fx-note';
+    note.textContent =
+      '≈ Umrechnung mit dem AKTUELLEN Wechselkurs (1 € = ' + fmtNum(fxPerEur, 4) + ' ' +
+      s.norm.currency + '), nicht mit historischen Kursen.';
+    el.appendChild(note);
+  }
 }
 
 // --- Hauptchart ---------------------------------------------------------------
@@ -109,9 +185,10 @@ function draw() {
     return;
   }
 
-  const { timestamps, closes } = series;
-  const buyLine = refInChartCurrency(BUY_EUR);
-  const targetLine = refInChartCurrency(TARGET_EUR);
+  const timestamps = series.timestamps;
+  const closes = series.closes.map(toDisplay); // in Anzeigewährung
+  const buyLine = refInDisplay(BUY_EUR);
+  const targetLine = refInDisplay(TARGET_EUR);
 
   // Wertebereich inkl. Referenzlinien, mit etwas Luft.
   let min = Math.min(...closes);
@@ -276,7 +353,7 @@ function draw() {
     const line1 = spanSec <= 10 * DAY
       ? dateStr + ' ' + d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
       : dateStr;
-    const line2 = fmtNum(closes[hi]) + ' ' + ((quoteMeta && quoteMeta.currency) || '');
+    const line2 = fmtNum(closes[hi]) + ' ' + displayUnit();
 
     ctx.font = '11px system-ui, sans-serif';
     const tw = Math.max(ctx.measureText(line1).width, ctx.measureText(line2).width);
@@ -327,7 +404,8 @@ function drawBrush() {
   bctx.clearRect(0, 0, w, h);
   if (!overview) return;
 
-  const { timestamps, closes } = overview;
+  const timestamps = overview.timestamps;
+  const closes = overview.closes.map(toDisplay);
   const min = Math.min(...closes);
   const max = Math.max(...closes);
   const y = (v) => 2 + (h - 4) * (1 - (v - min) / (max - min || 1));
@@ -476,30 +554,28 @@ async function loadDetail() {
     let fresh = await fetchSeries(yahooChartUrlPeriod(SYMBOL, sel.t0, sel.t1, interval));
 
     // Kurzes, leeres Fenster (Börse zu, z. B. "12h" nachts) -> letzter Handelstag.
-    let usedFallback = false;
+    let fallback = false;
     if (!fresh && span <= 1.5 * DAY) {
       fresh = await fetchSeries(yahooChartUrl(SYMBOL, '1d', '5m'));
-      usedFallback = true;
+      fallback = true;
     }
     if (seq !== loadSeq) return; // inzwischen neu ausgewählt
     loading = false;
     series = fresh || null;
+    usedFallback = fallback;
 
-    // FX einmalig nachladen, wenn die Börse nicht in Euro notiert.
+    // FX einmalig nachladen, wenn die Börse nicht in Euro notiert — nötig für
+    // die €-Standardanzeige; bis dahin läuft der Chart in der Börsenwährung.
     const norm = quoteMeta ? normalizeQuoteCurrency(quoteMeta.currency) : { currency: null };
     if (norm.currency && norm.currency !== 'EUR' && fxPerEur == null) {
       const fx = await fetchYahooQuote(fxPairSymbol(norm.currency));
       if (fx && fx.price > 0) fxPerEur = fx.price;
       if (seq !== loadSeq) return;
+      drawBrush(); // Übersicht wurde vor dem FX-Kurs gezeichnet -> nachziehen
     }
 
-    setMeta(
-      SYMBOL +
-      (quoteMeta && quoteMeta.price != null
-        ? ' · aktuell ' + fmtNum(quoteMeta.price) + ' ' + (quoteMeta.currency || '')
-        : '') +
-      (usedFallback ? ' · Börse geschlossen – letzter Handelstag' : ''),
-    );
+    updateCurToggle();
+    updateMeta();
     renderLegend();
     draw();
   } catch (e) {
@@ -536,6 +612,19 @@ async function init() {
 document.getElementById('ranges').addEventListener('click', (e) => {
   const btn = e.target.closest('button[data-range]');
   if (btn) applyPreset(btn.dataset.range);
+});
+
+// Währungsschalter: nur die Darstellung wechselt, es wird nichts neu geladen.
+document.getElementById('curToggle').addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-cur]');
+  if (!btn) return;
+  showEur = btn.dataset.cur === 'eur';
+  try { localStorage.setItem(CUR_PREF_KEY, showEur ? 'eur' : 'native'); } catch (err) {}
+  updateCurToggle();
+  updateMeta();
+  renderLegend();
+  draw();
+  drawBrush();
 });
 
 window.addEventListener('resize', () => {

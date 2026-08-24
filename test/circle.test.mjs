@@ -18,7 +18,7 @@ runInThisContext(readFileSync(join(here, '..', 'extension', 'lib', 'circle.js'),
 const {
   CIRCLE_CONFIG, parseGermanNumber, parseGermanDate, parseModuleTitle, proseMirrorText,
   buildCircleIndex, classifyCircleAccess, parseTradeBody, parseStatistik,
-  computePortfolio, selectStaleModules, diffCircleModules,
+  computePortfolio, selectStaleModules, diffCircleModules, circleHiddenTitle,
 } = globalThis;
 
 // --- Konfiguration ------------------------------------------------------------
@@ -55,6 +55,9 @@ const openCases = [
   ['Adidas (177,63€ ]', 'Adidas', 177.63], // Klammern gemischt
   ['Deutsche Telekom [29,60 €]', 'Deutsche Telekom', 29.6],
   ['AstraZeneca  [ 150,26 €]', 'AstraZeneca', 150.26], // Doppel-Leerzeichen
+  // Doppel-Kurs-Varianten (live 08/2026): es zählt die €-Zahl, egal ob vorn oder hinten.
+  ['Carnival Corporation [30,64 Dollar / 26,44 €]', 'Carnival Corporation', 26.44],
+  ['Alibaba Group Holding Ltd [118.14 € / 136,67]', 'Alibaba Group Holding Ltd', 118.14],
 ];
 for (const [title, name, price] of openCases) {
   const r = parseModuleTitle(title);
@@ -125,6 +128,26 @@ assert.equal(openTrade.qty, 8);
 assert.equal(openTrade.totalBuyEur, 420);
 assert.equal(openTrade.totalSellEur, undefined, 'Verkaufspreis "?" wird nicht als Zahl gelesen');
 assert.equal(openTrade.closed, false, '"Verkauf am ?" -> offen');
+
+// --- Body-Parser: Dollar-Kauf in Schrägstrich-Form (Carnival/Alibaba, live 08/2026) —
+// "Kauf am … zu 27,85 $ / 24,03€ je Aktie": der €-Wert nach dem Schrägstrich ist
+// der Kaufpreis je Aktie, der Dollar-Wert davor optional.
+const slashText = proseMirrorText(pmBody([
+  'WKN: A42BYX',
+  'ISIN: BMG2004J1036',
+  'Ticker: CCL',
+  'Heimatbörse: New York Stock Exchange, NYSE',
+  'Kauf am 17.08.2026 zu 27,85 $ / 24,03€ je Aktie',
+  'erfüllt in ()',
+  'Verkauf am ?',
+  '22 Stück zum Kaufpreis: 529 € - Verkaufspreis: ?',
+]));
+const slashTrade = parseTradeBody(slashText);
+assert.equal(slashTrade.buyDate, '17.08.2026');
+assert.equal(slashTrade.buyPriceEur, 24.03, '€-Wert hinter dem Schrägstrich gewinnt');
+assert.equal(slashTrade.qty, 22);
+assert.equal(slashTrade.totalBuyEur, 529);
+assert.equal(slashTrade.closed, false);
 
 // --- Body-Parser: geschlossene Position mit Dollar-Kauf (SLB, live gesehen) -------
 const closedText = proseMirrorText(pmBody([
@@ -210,12 +233,14 @@ function treeShape(children) {
 const kids = [
   { course: { id: 'leg1', updatedAt: 'u1', metadata: { title: 'LEG Immobilien SE [57,75 € ]', hasAccess: 1, desc: pmBody(['Kauf am 10.08.2026 zu 52,50€']) } } },
   { course: { id: 'slb1', updatedAt: 'u2', metadata: { title: 'SLB N.V. (Schlumberger) [8 Tage]', hasAccess: 1 } } },
+  // Leerer Platzhalter (live 08/2026): darf gar nicht erst in den Index gelangen.
+  { course: { id: 'ph1', updatedAt: 'u3', metadata: { title: 'Neue Seite', hasAccess: 1 } } },
 ];
 const fromHtml = buildCircleIndex({ props: { pageProps: { course: treeShape(kids) } } });
 const fromDataRoute = buildCircleIndex({ pageProps: { course: treeShape(kids) } });
 for (const idx of [fromHtml, fromDataRoute]) {
   assert.equal(idx.courseTitle, 'Aktienengagement Echtzeit');
-  assert.deepEqual(Object.keys(idx.modules).sort(), ['leg1', 'slb1']);
+  assert.deepEqual(Object.keys(idx.modules).sort(), ['leg1', 'slb1'], '"Neue Seite" nicht im Index');
   assert.equal(idx.modules.leg1.updatedAt, 'u1');
   assert.ok(idx.descs.leg1, 'bereits gefüllter Body wird mitgenommen');
   assert.equal(idx.descs.slb1, undefined);
@@ -270,6 +295,23 @@ assert.equal(slb.ertragPct, 10.02, 'realisierter Prozentsatz = 51 / 509');
 assert.equal(slb.holdingDays, 8);
 assert.equal(pf.unparseable.length, 1, 'Parse-Fehler landet unter "nicht auswertbar"');
 assert.equal(pf.unparseable[0].id, 'broken');
+
+// "Neue Seite"-Platzhalter des Autors erscheinen NIRGENDS — auch nicht unter
+// "Nicht auswertbar" (Nutzer-Wunsch, live: leere Seite vom 18.08.2026).
+assert.equal(circleHiddenTitle('Neue Seite'), true);
+assert.equal(circleHiddenTitle(' neue seite '), true, 'tolerant bei Groß-/Kleinschreibung und Leerraum');
+assert.equal(circleHiddenTitle('Neue Aktie [50,00 €]'), false);
+const pfPh = computePortfolio({
+  ...modules,
+  ph: {
+    id: 'ph', title: 'Neue Seite', updatedAt: 'u9',
+    titleInfo: parseModuleTitle('Neue Seite'),
+    trade: null, statistik: null, parseError: 'Keine Trade-Daten erkannt',
+  },
+});
+assert.equal(pfPh.unparseable.length, 1, '"Neue Seite" taucht nicht unter "Nicht auswertbar" auf');
+assert.equal(pfPh.unparseable[0].id, 'broken');
+assert.equal(pfPh.positions.length, 2, '"Neue Seite" wird auch keine Position');
 assert.deepEqual(pf.statistik, { eingesetztesKapital: 6000, zuwachs: 303 }, 'Autor-Statistik als Gegenprobe');
 
 // Geschlossene Position ohne explizites "Ertrag" -> Differenz Verkaufs-/Kaufsumme.
@@ -305,12 +347,70 @@ const noQty = computePortfolio({
     statistik: null, parseError: null,
   },
 });
-assert.equal(noQty.positions[0].unrealizedEur, 17.15, 'ohne Stück: Kurs − Kaufpreis');
-assert.equal(noQty.positions[0].unrealizedPct, 9.98);
+assert.equal(noQty.positions[0].currentPrice, 189.04, 'ohne Stück: Ziel = Kaufpreis +10 % in derselben Einheit');
+assert.equal(noQty.positions[0].unrealizedEur, 17.19);
+assert.equal(noQty.positions[0].unrealizedPct, 10);
 assert.equal(noQty.positions[0].incomplete, false);
-assert.equal(noQty.unrealizedTotal, 17.15);
+assert.equal(noQty.unrealizedTotal, 17.19);
 
-// Offene Position ohne Titel-Kurs -> angezeigt, aber nicht in der Summe.
+// Währung in allen Schreibweisen: €, Euro, euro, EUR — auch neben Dollar/USD.
+{
+  const v1 = parseTradeBody('Kauf am 17.08.2026 zu 124,25 $ / 107,40 Euro je Aktie\n5 Stück zum Kaufpreis: 537 Euro - Verkaufspreis: ?');
+  assert.equal(v1.buyPriceEur, 107.4, 'Schrägstrich-Form mit "Euro"');
+  assert.equal(v1.totalBuyEur, 537);
+  const v2 = parseTradeBody('Kauf am 17.08.2026 zu 124,25 USD (107,40 EUR) je Aktie\n5 Stück zum Kaufpreis: 537 EUR - Verkaufspreis: 590 EUR = 53 EUR Ertrag');
+  assert.equal(v2.buyPriceEur, 107.4, 'Klammer-Form mit "EUR"');
+  assert.equal(v2.totalSellEur, 590);
+  assert.equal(v2.ertragEur, 53);
+  const v3 = parseTradeBody('Kauf am 24.08.2026 zu 116,20 euro je Aktie\nVerkauf am 30.08.2026\n5 Stück zum Kaufpreis: 581 euro verkauft zu 640 euro Gewinn: 59 euro');
+  assert.equal(v3.buyPriceEur, 116.2, '"euro" klein');
+  assert.equal(v3.totalSellEur, 640);
+  assert.equal(v3.ertragEur, 59);
+  const v4 = parseTradeBody('Kauf am 24.08.2026 zu 83,92 Dollar je Aktie\n7 Stück zum Kaufpreis: 575 € - Verkaufspreis: ?');
+  assert.equal(v4.buyPriceEur, undefined, 'reiner Dollar-Kurs wird NICHT als Euro gelesen');
+  assert.deepEqual(parseModuleTitle('KRONES AG [127,82 Euro]'), { name: 'KRONES AG', kind: 'open', currentPrice: 127.82 });
+  assert.deepEqual(parseModuleTitle('Wells Fargo [92,32 USD / 79,11 EUR]'), { name: 'Wells Fargo', kind: 'open', currentPrice: 79.11 });
+}
+
+// Kursziel kommt aus der Stück-Zeile, nicht aus dem Titel (Wells Fargo 08/2026:
+// Titel 79,11 €, aber "7 Stück zum Kaufpreis: 575 € - Verkaufspreis: ?").
+const wfc = computePortfolio({
+  a: {
+    id: 'a', title: 'Wells Fargo & Company  [92,32 Dollar / 79,11 €]', updatedAt: 'u',
+    titleInfo: parseModuleTitle('Wells Fargo & Company  [92,32 Dollar / 79,11 €]'),
+    trade: parseTradeBody('Kauf am 24.08.2026 zu  83,92 Dollar / 71,91 € je Aktie\nVerkauf am ?\n7 Stück zum Kaufpreis: 575 € - Verkaufspreis: ? '),
+    statistik: null, parseError: null,
+  },
+});
+assert.equal(wfc.positions[0].targetSource, 'computed');
+assert.equal(wfc.positions[0].targetTotalEur, 632.5, '575 +10 %');
+assert.equal(wfc.positions[0].currentPrice, 90.36, '632,50 / 7 je Aktie');
+assert.equal(wfc.positions[0].titlePrice, 79.11, 'Titel-Kurs bleibt erhalten');
+assert.equal(wfc.positions[0].unrealizedEur, 57.5);
+assert.equal(wfc.positions[0].unrealizedPct, 10);
+assert.equal(wfc.positions[0].targetOff, false);
+
+// Konkreter Verkaufspreis im Body: übernehmen; nahe am 10-%-Ziel -> ok,
+// stark abweichend -> targetOff (Popup zeigt ihn rot).
+function openWithSell(sell) {
+  return computePortfolio({
+    a: {
+      id: 'a', title: 'X [12,00 €]', updatedAt: 'u', titleInfo: parseModuleTitle('X [12,00 €]'),
+      trade: { closed: false, qty: 10, totalBuyEur: 100, totalSellEur: sell },
+      statistik: null, parseError: null,
+    },
+  }).positions[0];
+}
+const near = openWithSell(112);
+assert.equal(near.targetSource, 'author');
+assert.equal(near.currentPrice, 11.2);
+assert.equal(near.unrealizedPct, 12);
+assert.equal(near.targetOff, false, '+12 % liegt in der 3-%-Toleranz');
+const far = openWithSell(130);
+assert.equal(far.currentPrice, 13, 'stark abweichender Verkaufspreis wird trotzdem übernommen');
+assert.equal(far.targetOff, true, '+30 % ist kein 10-%-Ziel');
+
+// Offene Position ohne Titel-Kurs: Ziel wird trotzdem aus dem Kaufpreis gerechnet.
 const noPrice = computePortfolio({
   a: {
     id: 'a', title: 'X', updatedAt: 'u',
@@ -319,8 +419,9 @@ const noPrice = computePortfolio({
     statistik: null, parseError: null,
   },
 });
-assert.equal(noPrice.positions[0].incomplete, true);
-assert.equal(noPrice.unrealizedTotal, 0, 'ohne Kurs keine unrealisierte Summe');
+assert.equal(noPrice.positions[0].incomplete, false);
+assert.equal(noPrice.positions[0].currentPrice, 55, '110 / 2 je Aktie');
+assert.equal(noPrice.unrealizedTotal, 10, 'Kaufpreis +10 %');
 assert.equal(noPrice.deployedOpen, 100, 'Kaufsumme zählt trotzdem als gebunden');
 
 // --- Kauf-/Verkaufs-Ereignisse zwischen zwei Ständen ----------------------------------------

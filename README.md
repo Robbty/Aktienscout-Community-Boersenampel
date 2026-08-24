@@ -27,7 +27,7 @@ Ein Browser-Add-on, das die **Börsenampel** der [Aktienscout-Community](https:/
 
 ### Der Circle-Tab in Bildern
 
-Auswertung mit den vier Summen, dazu die Positions-Listen (auf-/zuklappbar) – laufende Positionen mit Stück, Einkaufspreis, Einsatz, **aktuellem Börsenkurs** (Yahoo Finance, mit % zum Einkauf), Kursziel (der vom Autor geplante Verkaufskurs, mit Potenzial in %), Tagen seit Kauf, Summenzeile und 📈-Knopf für das Chart-Fenster; abgeschlossene mit Ertrag, Prozent, Haltedauer und Summenzeile:
+Auswertung mit den vier Summen, dazu die Positions-Listen (auf-/zuklappbar) – laufende Positionen mit Stück, Einkaufspreis, Einsatz, **aktuellem Börsenkurs** (Yahoo Finance, mit % zum Einkauf), Kursziel (aus der Zeile „… Stück zum Kaufpreis: … - Verkaufspreis: …“ des Beitrags: bei „?“ Kaufpreis +10 %, eine konkrete Zahl wird übernommen und bei starker Abweichung vom 10-%-Ziel rot markiert; mit Potenzial in %), Tagen seit Kauf, Summenzeile und 📈-Knopf für das Chart-Fenster; abgeschlossene mit Ertrag, Prozent, Haltedauer und Summenzeile:
 
 <p align="center">
   <img src="docs/V0.6.5/Circle-laufende-Positionen-Top.png" alt="Circle: laufende Positionen (oben)" width="340">

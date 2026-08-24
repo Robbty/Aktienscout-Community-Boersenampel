@@ -9,10 +9,14 @@
  * Der Body ist im Kursbaum ausschließlich für das per ?md=<id> ausgewählte Modul
  * gefüllt (children[i].course.metadata.desc, Format "[v2][{ProseMirror-JSON}]").
  * Titel-Konvention des Autors: "Name [57,75 € ]" = laufende Position; der
- * eingeklammerte Preis ist der geplante VERKAUFSKURS (Kursziel, meist +10 %
- * auf den Einkauf) — NICHT der aktuelle Börsenkurs. "Name [8 Tage]" =
- * verkauft nach 8 Tagen. (Feldname currentPrice bleibt aus Kompatibilität
- * mit gespeicherten Daten erhalten, gemeint ist das Kursziel.)
+ * eingeklammerte Preis ist der TAGESKURS zum Zeitpunkt der letzten Bearbeitung
+ * des Eintrags (laut Nutzer, 08/2026) — kein Kursziel und für die Auswertung
+ * nicht relevant. Das Kursziel wird in computePortfolio aus der Stück-Zeile
+ * des Bodys abgeleitet (Verkaufspreis "?" -> Kaufpreis +10 %). "Name [8 Tage]"
+ * = verkauft nach 8 Tagen. (titleInfo.currentPrice heißt aus Kompatibilität
+ * mit gespeicherten Daten weiter so; es ist der Titel-Tageskurs. In den
+ * Positionen von computePortfolio ist pos.currentPrice dagegen das abgeleitete
+ * Kursziel, der Titel-Kurs steht dort als pos.titlePrice.)
  */
 
 // --- Konfiguration der überwachten Skool-Quelle -----------------------------
@@ -82,7 +86,7 @@ function parseGermanDate(s) {
 // Die Klammern des Autors sind unsauber ("(177,63€ ]", "[10 Tage)"), deshalb
 // werden [ ( und ] ) austauschbar akzeptiert.
 // Ergebnis: { name, kind: 'open'|'closed'|'meta'|'plain', currentPrice?, holdingDays? }
-// currentPrice = das Kursziel aus dem Titel (siehe Kopfkommentar).
+// currentPrice = der Tageskurs aus dem Titel (siehe Kopfkommentar).
 function parseModuleTitle(title) {
   const t = String(title || '').trim();
   if (/statistik/i.test(t)) return { name: t, kind: 'meta' };
@@ -96,7 +100,11 @@ function parseModuleTitle(title) {
     };
   }
 
-  const price = t.match(/[\[(]\s*([\d.,]+)\s*€\s*[\])]/);
+  // Einfacher Fall "[57,75 € ]" plus die Doppel-Kurs-Varianten des Autors:
+  // "[30,64 Dollar / 26,44 €]" und "[118.14 € / 136,67]" — es zählt immer die
+  // erste Zahl mit €-Zeichen (der Tageskurs in Euro), der Dollar-Wert daneben
+  // wird ignoriert.
+  const price = t.match(/[\[(][^\])]*?([\d.,]+)\s*(?:€|euro|eur)\b[^\])]*[\])]/i) || t.match(/[\[(][^\])]*?([\d.,]+)\s*€[^\])]*[\])]/);
   if (price) {
     return {
       name: t.replace(price[0], '').replace(/\s{2,}/g, ' ').trim(),
@@ -154,6 +162,11 @@ function buildCircleIndex(nextData) {
     const c = child.course;
     if (!c || !c.id) continue;
     const meta = c.metadata || {};
+    // Leere "Neue Seite"-Platzhalter gar nicht erst aufnehmen: so landen sie
+    // weder im Speicher noch im Harvest (kein Body-Abruf) noch in Diffs. Wird
+    // die Seite später zur echten Position umbenannt, erscheint sie als neues
+    // Modul -> normales Kauf-Ereignis.
+    if (circleHiddenTitle(meta.title)) continue;
     modules[c.id] = {
       id: c.id,
       title: meta.title || '',
@@ -197,14 +210,20 @@ function parseTradeBody(text) {
   const ticker = t.match(/Ticker:\s*([A-Z0-9.\-]+)/i);
   if (ticker) out.ticker = ticker[1];
 
-  // Euro-Betrag aus dem Rest einer Kauf-/Verkaufszeile: Klammer-Form gewinnt
-  // (Dollar-Fall), dann "- 46,65 €", dann "zu 52,50€".
+  // Euro-Betrag aus dem Rest einer Kauf-/Verkaufszeile. Die Währung darf als
+  // "€", "Euro", "euro" oder "EUR" geschrieben sein (Dollar als "$", "Dollar",
+  // "USD" wird nie als Euro gelesen). Klammer-Form gewinnt
+  // (Dollar-Fall "zu 48,88 $ (42,32 €)"), dann die Schrägstrich-Form
+  // "zu 27,85 $ / 24,03€", dann "- 46,65 €", dann "zu 52,50€". Der Dollar-Wert
+  // vor dem €-Betrag ist in allen Formen optional.
   function euroFrom(rest) {
-    const paren = rest.match(/\(\s*([\d.,]+)\s*€\s*\)/);
+    const paren = rest.match(/\(\s*([\d.,]+)\s*(?:€|euro|eur)\s*\)/i);
     if (paren) return parseGermanNumber(paren[1]);
-    const dash = rest.match(/-\s*([\d.,]+)\s*€/);
+    const slash = rest.match(/\/\s*([\d.,]+)\s*(?:€|euro|eur)/i);
+    if (slash) return parseGermanNumber(slash[1]);
+    const dash = rest.match(/-\s*([\d.,]+)\s*(?:€|euro|eur)/i);
     if (dash) return parseGermanNumber(dash[1]);
-    const plain = rest.match(/zu\s*([\d.,]+)\s*€/i);
+    const plain = rest.match(/zu\s*([\d.,]+)\s*(?:€|euro|eur)/i);
     if (plain) return parseGermanNumber(plain[1]);
     return null;
   }
@@ -229,20 +248,20 @@ function parseTradeBody(text) {
   // deshalb ist es optional — der Anker ist das Schlüsselwort mit Doppelpunkt.
   const qty = t.match(/(\d+)\s*Stück/i);
   if (qty) out.qty = Number(qty[1]);
-  const totalBuy = t.match(/Kaufpreis:\s*([\d.,]+)\s*€?/i);
+  const totalBuy = t.match(/Kaufpreis:\s*([\d.,]+)\s*(?:€|euro|eur)?/i);
   if (totalBuy) out.totalBuyEur = parseGermanNumber(totalBuy[1]);
-  const totalSell = t.match(/Verkaufspreis:\s*([\d.,]+)\s*€?/i);
+  const totalSell = t.match(/Verkaufspreis:\s*([\d.,]+)\s*(?:€|euro|eur)?/i);
   if (totalSell) out.totalSellEur = parseGermanNumber(totalSell[1]);
   // Variante "… 645 € verkauft zu 712 €" (ohne "Verkaufspreis:"-Anker).
   if (out.totalSellEur == null) {
-    const soldAt = t.match(/verkauft zu\s*([\d.,]+)\s*€/i);
+    const soldAt = t.match(/verkauft zu\s*([\d.,]+)\s*(?:€|euro|eur)/i);
     if (soldAt) out.totalSellEur = parseGermanNumber(soldAt[1]);
   }
 
   // Ertrag in allen gesehenen Schreibweisen: "= 51 € Ertrag", "Gewinn: 47 €",
   // Verlust-Formen entsprechend negativ.
-  const gain = t.match(/=\s*(-?\s*[\d.,]+)\s*€\s*Ertrag/i) || t.match(/Gewinn:\s*(-?\s*[\d.,]+)\s*€/i);
-  const loss = t.match(/=\s*-?\s*([\d.,]+)\s*€\s*Verlust/i) || t.match(/Verlust:\s*-?\s*([\d.,]+)\s*€/i);
+  const gain = t.match(/=\s*(-?\s*[\d.,]+)\s*(?:€|euro|eur)\s*Ertrag/i) || t.match(/Gewinn:\s*(-?\s*[\d.,]+)\s*(?:€|euro|eur)/i);
+  const loss = t.match(/=\s*-?\s*([\d.,]+)\s*(?:€|euro|eur)\s*Verlust/i) || t.match(/Verlust:\s*-?\s*([\d.,]+)\s*(?:€|euro|eur)/i);
   if (gain) {
     out.ertragEur = parseGermanNumber(gain[1].replace(/\s/g, ''));
     out.closed = true;
@@ -268,11 +287,22 @@ function parseStatistik(text) {
   return out.eingesetztesKapital != null || out.zuwachs != null ? out : null;
 }
 
+// --- "Neue Seite"-Platzhalter ----------------------------------------------------
+// Der Autor legt leere Seiten unter dem Standardtitel "Neue Seite" an und füllt
+// sie erst später. Solche Einträge sollen NIRGENDS auftauchen — weder unter
+// "Nicht auswertbar" noch im Käufe-/Verkäufe-Log (Wunsch des Nutzers).
+function circleHiddenTitle(name) {
+  return /^neue seite$/i.test(String(name || '').trim());
+}
+
 // --- Portfolio-Aggregation -------------------------------------------------------
 // Input: der gespeicherte modules-Map (je Eintrag: title, titleInfo, trade,
 // statistik, parseError). Parse-Fehler landen in `unparseable` und verfälschen
 // NIE die Summen; unvollständige Positionen werden angezeigt, aber aus der
 // jeweiligen Summe herausgehalten (incomplete: true).
+const TARGET_FACTOR = 1.10;    // Schema des Autors: Verkauf bei Kaufpreis +10 %
+const TARGET_TOLERANCE = 0.03; // ±3 Prozentpunkte gelten noch als "10-%-Ziel"
+
 function computePortfolio(modules) {
   const round2 = (n) => Math.round(n * 100) / 100;
   const res = {
@@ -300,6 +330,7 @@ function computePortfolio(modules) {
     }
 
     if (m.parseError || !m.trade) {
+      if (circleHiddenTitle(ti.name)) continue; // leere "Neue Seite" still übergehen
       res.unparseable.push({
         id: m.id,
         title: m.title,
@@ -333,7 +364,11 @@ function computePortfolio(modules) {
       buyDate: tr.buyDate || null,
       buyPriceEur: tr.buyPriceEur != null ? tr.buyPriceEur : null,
       totalBuyEur: totalBuy,
-      currentPrice: ti.currentPrice != null ? ti.currentPrice : null,
+      currentPrice: ti.currentPrice != null ? ti.currentPrice : null, // offen: wird unten durch das abgeleitete Kursziel ersetzt
+      titlePrice: ti.currentPrice != null ? ti.currentPrice : null,
+      targetTotalEur: null,
+      targetSource: null,  // 'author' (Verkaufspreis im Body) | 'computed' (Kaufpreis +10 %)
+      targetOff: false,    // Autor-Verkaufspreis weicht stark vom +10%-Schema ab
       unrealizedEur: null,
       unrealizedPct: null,
       ertragEur: null,
@@ -361,18 +396,31 @@ function computePortfolio(modules) {
       }
     } else {
       if (totalBuy != null) res.deployedOpen += totalBuy;
-      if (pos.currentPrice != null && pos.qty != null && totalBuy != null) {
-        const u = pos.qty * pos.currentPrice - totalBuy;
+      // Kursziel NICHT aus dem Titel, sondern aus der Stück-Zeile
+      // "7 Stück zum Kaufpreis: 575 € - Verkaufspreis: ?" (Nutzer-Regel, live
+      // Wells Fargo 08/2026: Titel 79,11 € passte nicht zu 575 € / 7 Stück).
+      // "?" -> Kaufpreis +10 % selbst rechnen; konkrete Zahl -> übernehmen, aber
+      // gegen das +10%-Schema prüfen (Toleranz 3 Prozentpunkte) und bei starker
+      // Abweichung markieren (targetOff, im Popup rot). Der Titel-Kurs (Tageskurs
+      // bei der letzten Bearbeitung) bleibt nur als titlePrice erhalten (Tooltip).
+      if (totalBuy != null && totalBuy > 0) {
+        if (tr.totalSellEur != null) {
+          pos.targetTotalEur = round2(tr.totalSellEur);
+          pos.targetSource = 'author';
+          pos.targetOff = Math.abs(tr.totalSellEur / totalBuy - TARGET_FACTOR) > TARGET_TOLERANCE;
+        } else {
+          pos.targetTotalEur = round2(totalBuy * TARGET_FACTOR);
+          pos.targetSource = 'computed';
+          pos.targetOff = false;
+        }
+        // Je Aktie mit Stückzahl, sonst in der Einheit des Kaufpreises
+        // (Heidelberg/Accor-Format ohne Stück-Zeile).
+        pos.currentPrice = pos.qty != null && pos.qty > 0
+          ? round2(pos.targetTotalEur / pos.qty)
+          : pos.targetTotalEur;
+        const u = pos.targetTotalEur - totalBuy;
         pos.unrealizedEur = round2(u);
-        pos.unrealizedPct = totalBuy > 0 ? round2((u / totalBuy) * 100) : null;
-        res.unrealizedTotal += u;
-      } else if (pos.currentPrice != null && pos.qty == null && totalBuy != null) {
-        // Einträge ohne Stück-Angabe: der Autor notiert dort Kaufpreis und
-        // Titel-Kurs in derselben Einheit (live geprüft: Heidelberg 171,85 -> 189,00
-        // und Accor 46,92 -> 51,62, beide exakt sein +10%-Schema).
-        const u = pos.currentPrice - totalBuy;
-        pos.unrealizedEur = round2(u);
-        pos.unrealizedPct = totalBuy > 0 ? round2((u / totalBuy) * 100) : null;
+        pos.unrealizedPct = round2((u / totalBuy) * 100);
         res.unrealizedTotal += u;
       } else {
         pos.incomplete = true;
@@ -481,6 +529,7 @@ if (typeof globalThis !== 'undefined') {
   globalThis.parseTradeBody = parseTradeBody;
   globalThis.parseStatistik = parseStatistik;
   globalThis.computePortfolio = computePortfolio;
+  globalThis.circleHiddenTitle = circleHiddenTitle;
   globalThis.circlePlaceholder = circlePlaceholder;
   globalThis.diffCircleModules = diffCircleModules;
   globalThis.selectStaleModules = selectStaleModules;

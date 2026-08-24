@@ -248,6 +248,8 @@ function renderHistory() {
   const days = (state.settings && state.settings.activityDays) || 7;
   const cutoff = Date.now() - days * 86400000;
   const rows = (state.history || [])
+    // Alte, bereits geloggte "Neue Seite"-Einträge ebenfalls ausblenden.
+    .filter((e) => !hiddenPlaceholderTitle(e.name))
     .map((e) => ({ e, ts: Date.parse(e.at) }))
     .filter((r) => !isNaN(r.ts) && r.ts >= cutoff)
     .sort((a, b) => b.ts - a.ts);
@@ -294,6 +296,8 @@ function renderActivity() {
   const stocks = (state.current && state.current.stocks) || {};
 
   const rows = Object.keys(stocks)
+    // Snapshots aus alten Versionen könnten noch "Neue Seite"-Einträge tragen.
+    .filter((id) => !hiddenPlaceholderTitle(stocks[id].name))
     .map((id) => ({ s: stocks[id], ts: Date.parse(stocks[id].updatedAt) }))
     .filter((r) => !isNaN(r.ts) && r.ts >= cutoff)
     .sort((a, b) => b.ts - a.ts);
@@ -649,11 +653,22 @@ function renderCircleOpenTable(allRows) {
     tr.appendChild(kurs);
 
     // Kursziel, darunter das Potenzial in % bezogen auf den Einsatz.
+    // Quelle: Stück-Zeile im Body (Verkaufspreis "?" -> Kaufpreis +10 % gerechnet;
+    // konkrete Zahl -> übernommen, bei starker Abweichung vom 10-%-Schema rot).
     const ziel = td(p.currentPrice != null ? fmtEur(p.currentPrice) : '–', 'num');
     if (p.unrealizedPct != null) {
-      const cls = signClass(p.unrealizedPct);
+      const cls = p.targetOff ? 'neg' : signClass(p.unrealizedPct);
       if (cls) ziel.classList.add(cls);
       appendPct(ziel, p.unrealizedPct);
+    }
+    if (p.targetSource) {
+      ziel.title =
+        (p.targetSource === 'computed'
+          ? 'Kursziel berechnet: Kaufpreis +10 % (Verkaufspreis im Beitrag offen)'
+          : p.targetOff
+            ? 'Verkaufspreis laut Beitrag ' + fmtEur(p.targetTotalEur) + ' – weicht deutlich vom 10-%-Ziel ab!'
+            : 'Verkaufspreis laut Beitrag ' + fmtEur(p.targetTotalEur)) +
+        (p.titlePrice != null ? ' · Tageskurs laut Titel (Stand letzte Bearbeitung): ' + fmtEur(p.titlePrice) : '');
     }
     tr.appendChild(ziel);
 
@@ -819,13 +834,16 @@ function renderCircleClosedTable(allRows) {
 function renderCircleLog(pending) {
   const sec = document.getElementById('circleLog');
   const ul = document.getElementById('circleLogList');
-  const rows = (state.circleHistory || [])
+  // "Neue Seite"-Platzhalter auch aus alten, bereits gespeicherten Einträgen
+  // herausfiltern — sie sollen nirgends erscheinen.
+  const events = (state.circleHistory || []).filter((e) => !circleHiddenTitle(e.name));
+  const rows = events
     .map((e) => ({ e, ts: Date.parse(e.at) || Date.parse(e.detectedAt) || 0 }))
     .sort((a, b) => b.ts - a.ts)
     .slice(0, 30); // die jüngsten 30 reichen im Popup
 
   ul.innerHTML = '';
-  document.getElementById('circleLogCount').textContent = String((state.circleHistory || []).length);
+  document.getElementById('circleLogCount').textContent = String(events.length);
   sec.hidden = false;
   // Bei unbestätigten Ereignissen automatisch aufklappen, sonst Zustand lassen.
   if (pending > 0) sec.classList.remove('collapsed');
@@ -1039,7 +1057,67 @@ document.getElementById('circleLogToggle').addEventListener('click', () => {
 });
 
 // --- Init + Events ----------------------------------------------------------
+// --- Update-Historie (changelog.md im Extension-Ordner) ---------------------
+// Minimaler Markdown-Renderer: "## " -> Überschrift, "- " -> Stichpunkt,
+// "# " (Titel) und "> " (Wartungshinweise) werden übersprungen, sonst Absatz.
+function renderChangelog(md) {
+  const body = document.getElementById('changelogBody');
+  body.innerHTML = '';
+  let ul = null;
+  for (const raw of md.split('\n')) {
+    const line = raw.trim();
+    if (!line || line.startsWith('# ') || line.startsWith('>')) { ul = null; continue; }
+    if (line.startsWith('## ')) {
+      ul = null;
+      const h = document.createElement('h3');
+      h.textContent = line.slice(3);
+      body.appendChild(h);
+    } else if (line.startsWith('- ')) {
+      if (!ul) { ul = document.createElement('ul'); body.appendChild(ul); }
+      const li = document.createElement('li');
+      li.textContent = line.slice(2);
+      ul.appendChild(li);
+    } else {
+      ul = null;
+      const p = document.createElement('p');
+      p.textContent = line;
+      body.appendChild(p);
+    }
+  }
+}
+
+async function openChangelog() {
+  const sec = document.getElementById('changelog');
+  const body = document.getElementById('changelogBody');
+  sec.hidden = false;
+  body.textContent = 'Lade…';
+  try {
+    const res = await fetch(api.runtime.getURL('changelog.md'));
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    renderChangelog(await res.text());
+  } catch (e) {
+    body.textContent = 'Update-Historie nicht ladbar (' + String(e.message || e) + ').';
+  }
+}
+
+function closeChangelog() {
+  document.getElementById('changelog').hidden = true;
+}
+
+document.getElementById('version').addEventListener('click', openChangelog);
+document.getElementById('changelogBack').addEventListener('click', closeChangelog);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && !document.getElementById('changelog').hidden) closeChangelog();
+});
+
 async function init() {
+  // Versionsnummer aus dem Manifest (in der App fehlt getManifest im Shim ->
+  // dort bleibt die Zeile leer, die App zeigt ihre Version selbst).
+  try {
+    const mf = api.runtime.getManifest && api.runtime.getManifest();
+    if (mf && mf.version) document.getElementById('version').textContent = 'Version ' + mf.version;
+  } catch (e) {}
+
   state = await send({ type: 'getState' });
 
   const meta = state.meta || {};

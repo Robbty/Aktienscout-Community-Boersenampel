@@ -102,6 +102,17 @@ function classifyAmpelAccess(nextData) {
   return 'ok';
 }
 
+// --- "Neue Seite"-Platzhalter -----------------------------------------------
+// Der Autor legt leere Module unter dem Skool-Standardtitel "Neue Seite" an
+// (live: mehrere auf Menüpunkt-Ebene der Ampel) und benennt sie erst später um.
+// Solche Einträge sollen NIRGENDS auftauchen — nicht als Menüpunkt/Aktie, nicht
+// in Diffs ("Änderungen seit letztem Besuch"), nicht im Statuswechsel-Logbuch
+// und nicht in Benachrichtigungen. Gleiche Regel wie circleHiddenTitle in
+// circle.js — bewusst dupliziert, weil beide Libs unabhängig ladbar sind.
+function hiddenPlaceholderTitle(name) {
+  return /^neue seite$/i.test(String(name || '').trim());
+}
+
 // --- Snapshot aus dem __NEXT_DATA__-JSON bauen ------------------------------
 // Liefert ein flaches, vergleichbares Abbild des aktuellen Ampel-Zustands.
 function buildSnapshot(nextData) {
@@ -114,6 +125,7 @@ function buildSnapshot(nextData) {
   let count = 0;
   for (const section of root.children || []) {
     const sectionTitle = section.course.metadata.title;
+    if (hiddenPlaceholderTitle(sectionTitle)) continue; // leere "Neue Seite" überspringen
     const childCount = (section.children || []).length;
     sections[section.course.id] = {
       id: section.course.id,
@@ -124,6 +136,7 @@ function buildSnapshot(nextData) {
     };
     for (const st of section.children || []) {
       const id = st.course.id;
+      if (hiddenPlaceholderTitle(st.course.metadata.title)) continue;
       stocks[id] = {
         id,
         name: st.course.metadata.title,
@@ -142,6 +155,29 @@ function buildSnapshot(nextData) {
     stocks, // map id -> stock
     sections, // map id -> section
   };
+}
+
+// Gespeicherte Snapshots älterer Versionen von "Neue Seite"-Platzhaltern
+// befreien (einmalige Migration in background.js — buildSnapshot filtert sie
+// inzwischen an der Quelle). Liefert den Snapshot unverändert zurück, wenn
+// nichts zu bereinigen ist.
+function stripHiddenFromSnapshot(snap) {
+  if (!snap || typeof snap !== 'object') return snap;
+  let changed = false;
+  const stocks = {};
+  for (const id of Object.keys(snap.stocks || {})) {
+    if (hiddenPlaceholderTitle(snap.stocks[id].name)) { changed = true; continue; }
+    stocks[id] = snap.stocks[id];
+  }
+  const sections = {};
+  for (const id of Object.keys(snap.sections || {})) {
+    if (hiddenPlaceholderTitle(snap.sections[id].title)) { changed = true; continue; }
+    sections[id] = snap.sections[id];
+  }
+  if (!changed) return snap;
+  const out = { ...snap, stocks, stockCount: Object.keys(stocks).length };
+  if (snap.sections) out.sections = sections;
+  return out;
 }
 
 // Snapshot direkt aus einem geladenen Dokument (Content-Script-Pfad).
@@ -168,8 +204,13 @@ function diffSnapshots(oldSnap, newSnap) {
   const oldStocks = (oldSnap && oldSnap.stocks) || {};
   const newStocks = newSnap.stocks || {};
 
+  // "Neue Seite"-Platzhalter auf BEIDEN Seiten ignorieren: neue Snapshots sind
+  // durch buildSnapshot schon sauber, aber gespeicherte Altstände (baseline/
+  // current aus früheren Versionen) könnten sie noch enthalten — ohne den
+  // Filter gäbe es einmalige "Entfernt"-Fehlalarme.
   for (const id of Object.keys(newStocks)) {
     const n = newStocks[id];
+    if (hiddenPlaceholderTitle(n.name)) continue;
     const o = oldStocks[id];
     if (!o) {
       result.added.push({ ...n });
@@ -180,6 +221,7 @@ function diffSnapshots(oldSnap, newSnap) {
     }
   }
   for (const id of Object.keys(oldStocks)) {
+    if (hiddenPlaceholderTitle(oldStocks[id].name)) continue;
     if (!newStocks[id]) result.removed.push({ ...oldStocks[id] });
   }
 
@@ -190,6 +232,7 @@ function diffSnapshots(oldSnap, newSnap) {
     const newSec = newSnap.sections;
     for (const id of Object.keys(newSec)) {
       const n = newSec[id];
+      if (hiddenPlaceholderTitle(n.title)) continue;
       const o = oldSec[id];
       if (!o) {
         result.sectionAdded.push({ ...n });
@@ -199,6 +242,7 @@ function diffSnapshots(oldSnap, newSnap) {
       }
     }
     for (const id of Object.keys(oldSec)) {
+      if (hiddenPlaceholderTitle(oldSec[id].title)) continue;
       if (!newSec[id]) result.sectionRemoved.push({ ...oldSec[id] });
     }
   }
@@ -260,6 +304,8 @@ if (typeof globalThis !== 'undefined') {
   globalThis.ampelColor = ampelColor;
   globalThis.extractNextDataFromHtml = extractNextDataFromHtml;
   globalThis.classifyAmpelAccess = classifyAmpelAccess;
+  globalThis.hiddenPlaceholderTitle = hiddenPlaceholderTitle;
+  globalThis.stripHiddenFromSnapshot = stripHiddenFromSnapshot;
   globalThis.buildSnapshot = buildSnapshot;
   globalThis.buildSnapshotFromDocument = buildSnapshotFromDocument;
   globalThis.diffSnapshots = diffSnapshots;

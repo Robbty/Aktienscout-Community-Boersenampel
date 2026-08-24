@@ -66,6 +66,8 @@ Du musst keine der Seiten offen haben – angemeldet sein genügt.
 
 Das Ampel-Symbol ist jetzt oben rechts. Tipp: Auf das Puzzleteil 🧩 klicken und die Ampel **anheften**, dann ist sie immer sichtbar.
 
+> 🛠️ **Der Entwicklermodus muss eingeschaltet BLEIBEN.** Die Ampel kommt nicht aus dem Chrome Web Store, sondern direkt aus dem Ordner – und seit Chrome 133 (Anfang 2025) schaltet Chrome solche Erweiterungen **ab, sobald der Entwicklermodus aus ist** (Meldung: „nicht vom Chrome Web Store geprüft"). Schalter wieder an → die Ampel ist sofort wieder da, nichts geht verloren. Anlassen hat sonst keine Nachteile.
+
 ---
 
 ## Einbauen in Firefox
@@ -77,6 +79,8 @@ Das Ampel-Symbol ist jetzt oben rechts. Tipp: Auf das Puzzleteil 🧩 klicken un
 5. Geh in den Ordner **`dist`** → **`firefox`** und wähle die Datei **`manifest.json`**. Fertig! 🎉
 
 > 🦊 **Wichtig bei Firefox:** Beim Schließen von Firefox geht das Add-on wieder weg. Dann einfach die Schritte 2–5 wiederholen. (Eine dauerhafte Version ist möglich, braucht aber etwas mehr Aufwand.)
+>
+> Einen „Entwicklermodus" wie bei Chrome gibt es in Firefox nicht – `about:debugging` ist bereits die Entwickler-Seite, es muss nichts extra eingeschaltet werden.
 
 ---
 
@@ -114,7 +118,7 @@ Richtung um. Der kleine Pfeil zeigt dir, wonach gerade sortiert ist.
 
 - den **Einkaufspreis** und den **Einsatz**,
 - den **aktuellen Börsenkurs** – mit Prozent: Wie weit ist die Aktie seit dem Kauf gestiegen oder gefallen?
-- das **Kursziel** – der Verkaufskurs, den der Autor anpeilt,
+- das **Kursziel** – der Verkaufskurs, den der Autor anpeilt. Steht im Beitrag „Verkaufspreis: ?“, rechnet die Ampel Kaufpreis +10 %; steht eine Zahl, wird sie übernommen und **rot** angezeigt, wenn sie deutlich vom 10-%-Ziel abweicht (der Kurs in der Titelzeile ist nur der Tageskurs bei der letzten Bearbeitung),
 - wie viele **Tage** der Kauf her ist.
 
 Und ganz rechts: der **📈-Knopf**. Ein Klick öffnet ein eigenes **Chart-Fenster** mit dem Kursverlauf.
@@ -160,20 +164,24 @@ Es gibt eine neue Version? So holst du sie dir. Dauert zwei Minuten.
    👉 **[Projekt als ZIP herunterladen](https://github.com/Robbty/Aktienscout-Community-Boersenampel/archive/refs/heads/main.zip)**
 2. **Entpacke das ZIP an denselben Ort** wie damals. Ersetze dabei den alten Ordner (Frage „Dateien ersetzen?" mit **Ja** beantworten).
 
+> 🪤 **Die häufigste Falle:** Liegt die alte ZIP-Datei noch im Download-Ordner, nennt der Browser die neue automatisch **„main (1).zip"** – und beim Entpacken entsteht ein **neuer Ordner „main (1)"** statt des ersetzten alten. Chrome schaut aber weiterhin in den **alten** Ordner und zeigt darum weiter die alte Version. Also: alte ZIP vorher löschen oder beim Entpacken darauf achten, dass wirklich der **bisherige** Ordner ersetzt wird (Frage „Dateien ersetzen?" muss kommen).
+
 **Dann in Chrome (oder Edge, Brave, Opera):**
 
 3. Tippe in die Adresszeile: **`chrome://extensions`** und drücke Enter.
-4. Suche die Karte der Börsenampel und klicke auf den **runden Pfeil ↻** („Aktualisieren"). Fertig! 🎉
+4. Der **Entwicklermodus** muss eingeschaltet sein – sonst siehst du den Pfeil aus Schritt 5 gar nicht. So geht's: Auf der Seite `chrome://extensions` steht **oben rechts** ein Schalter **„Entwicklermodus"** 🛠️ – anklicken, bis er blau ist. Danach erscheinen an den Karten der Erweiterungen zusätzliche Knöpfe, unter anderem der Pfeil ↻. (Ohne Entwicklermodus ist die Ampel seit Chrome 133 ohnehin abgeschaltet – siehe Hinweis bei der Installation.)
+5. Suche die Karte der Börsenampel und klicke auf den **runden Pfeil ↻** („Aktualisieren"). Fertig! 🎉
+6. **Kontrolle:** Klick auf das Ampel-Symbol – ganz unten im Popup steht die **Versionsnummer**. Die muss zur neuen Version passen (steht auch auf der Karte in `chrome://extensions`).
 
 Deine Einstellungen und die Chronik **bleiben erhalten**. 👍
 
 > ⚠️ **Wichtig:** Nicht „Entfernen" und neu laden – dabei gehen Einstellungen und Chronik verloren. Der Pfeil ↻ reicht völlig.
 >
-> Hast du das ZIP an einen **anderen** Ort entpackt? Dann geht es nur über „Entfernen" und **„Entpackte Erweiterung laden"** mit dem neuen Ordner. Die Chronik beginnt dann leider von vorn.
+> Hast du das ZIP an einen **anderen** Ort entpackt? Dann geht es nur über „Entfernen" und **„Entpackte Erweiterung laden"** mit dem neuen Ordner (im Datei-Dialog wirklich den **neuen** Ordner wählen – der Dialog schlägt gern den alten vor). Die Chronik beginnt dann leider von vorn.
 
 **In Firefox:**
 
-3. Firefox lädt das Add-on ja bei jedem Start neu (siehe oben). Einfach wie gewohnt über **`about:debugging`** laden – es nimmt automatisch die neue Version aus dem ersetzten Ordner.
+3. Firefox lädt das Add-on ja bei jedem Start neu (siehe oben). Einfach wie gewohnt über **`about:debugging`** laden – es nimmt automatisch die neue Version aus dem ersetzten Ordner. Läuft Firefox gerade noch mit der alten Version, reicht dort auch der Knopf **„Neu laden"** an der Ampel-Karte. Ein Entwicklermodus ist nicht nötig.
 
 ---
 
@@ -199,6 +207,12 @@ Von Yahoo Finance, kostenlos und ohne Anmeldung. Die Kurse können ein paar Minu
 Steht da „–", war Yahoo gerade nicht erreichbar – einfach später noch mal öffnen.
 (In **Firefox** musst du dem Add-on eventuell einmal den Website-Zugriff erlauben:
 Adresszeile `about:addons`, dort beim Add-on unter „Berechtigungen" alles einschalten.)
+
+**Die Ampel ist plötzlich aus / „nicht vom Chrome Web Store geprüft". 😶**
+Dann wurde der Entwicklermodus ausgeschaltet. Seit Chrome 133 deaktiviert Chrome Erweiterungen, die aus einem Ordner geladen wurden, sobald der Entwicklermodus aus ist. Auf `chrome://extensions` oben rechts den Schalter wieder einschalten – die Ampel ist sofort wieder da, Einstellungen und Chronik bleiben erhalten.
+
+**Nach dem Update ist immer noch die alte Version da. 🤔**
+Schau unten im Popup auf die Versionsnummer. Ist sie alt, hat Chrome noch den alten Ordner: Meist wurde das neue ZIP als „main (1).zip" in einen **neuen** Ordner entpackt (siehe Kasten oben unter „Update einbauen"), oder der Entwicklermodus war aus und der Pfeil ↻ deshalb nicht da (Schalter oben rechts auf `chrome://extensions` einschalten). Abhilfe: alten Ordner wirklich ersetzen, dann ↻ – oder einmalig „Entfernen" und den **neuen** Ordner laden.
 
 **Sieht jemand anderes meine Daten?**
 Nein. Alles bleibt nur in deinem Browser.
