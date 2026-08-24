@@ -24,10 +24,17 @@ const api = globalThis.browser || globalThis.chrome;
 // Chrome (Service-Worker) lädt die geteilte Logik via importScripts. In Firefox
 // kommt sie über das background.scripts-Array; dort gibt es kein importScripts.
 if (typeof importScripts === 'function') {
-  importScripts('lib/debug.js', 'lib/ampel.js', 'lib/circle.js', 'lib/quotes.js');
+  importScripts('lib/debug.js', 'lib/ampel.js', 'lib/circle.js', 'lib/quotes.js',
+    'lib/events.js', 'lib/sync-webdav.js', 'lib/sync-flush.js');
 }
 
-const DEFAULTS = { intervalMinutes: 60, blinkEnabled: true, activityDays: 7 };
+const DEFAULTS = {
+  intervalMinutes: 60,
+  blinkEnabled: true,
+  activityDays: 7,
+  // Event-Log-Sync (EVENTS.md): aus, bis der Nutzer ihn im Footer einschaltet.
+  sync: { enabled: false, adapter: 'webdav', url: '', user: '', password: '', producerId: null, label: '' },
+};
 const ALARM = 'poll';
 
 // Icon-Frames fürs Blinken (normal = Lichter an, off = erloschen).
@@ -226,7 +233,10 @@ async function ingestSnapshot(snapshot, source, allowBlink = false) {
   if (!isFirstEver && diffCount(delta) > 0) {
     await notifyChanges(delta);
     await appendHistory(delta); // Strukturänderungen ins Logbuch
+    syncOnAmpelDelta(delta).catch((e) => console.warn('[Sync] Ampel-Delta', e));
   }
+  // Snapshot-Regel + langsame Symbolauflösung, nie im Poll-Pfad awaiten.
+  afterSuccessfulAmpelPoll().catch((e) => console.warn('[Sync] Nachlauf', e));
 
   // Blink-Schub, wenn es seit dem letzten Bestätigen unbestätigte Änderungen
   // gibt (nicht bei Erstinstallation, nicht wenn vom Nutzer abgeschaltet).
@@ -518,6 +528,7 @@ async function doPollCircle(allowBlink = false) {
     await api.storage.local.set(toSet);
 
     if (fresh.length) {
+      syncOnCircleDelta(fresh, modules, oldModules).catch((e) => console.warn('[Sync] Circle-Delta', e));
       await notifyCircleEvents(fresh);
       if (allowBlink && settings.blinkEnabled) startBlink();
     }
@@ -703,6 +714,286 @@ async function getCircleQuotes() {
 
   await api.storage.local.set({ quoteSymbols: symbols, quotes });
   return { ok: true, quotes: out };
+}
+
+
+// --- Event-Log-Sync (EVENTS.md) ------------------------------------------------
+// Die Börsenampel schreibt Ereignisse (append-only) in einen Nutzer-eigenen
+// Sync-Ordner. Ablauf: Poll erkennt Delta -> emitEvents() hängt an syncOutbox
+// (mit fortlaufendem seq) -> flushOutbox() schreibt per Adapter. WebDAV läuft
+// hier im Worker; der Adapter "lokaler Ordner" (File System Access API) ist nur
+// in Seitenkontexten möglich -> der Worker markiert syncMeta.needsPageFlush und
+// Popup/Standalone-Fenster schreiben (popup.js). Alles nur bei aktivem Schalter,
+// nie bei DEBUG_SIMULATE, nie ohne erfolgreichen Poll (Privacy-Regel).
+const SYNC_SNAPSHOT_MS = 24 * 60 * 60 * 1000;
+const SYNC_AMPEL_SYMBOLS_PER_POLL = 3; // Namenssuchen je Poll (Yahoo-Drossel)
+
+function syncActive(settings) {
+  const sy = (settings && settings.sync) || {};
+  if (!sy.enabled || !sy.producerId) return false;
+  if (globalThis.DEBUG_SIMULATE && (globalThis.DEBUG_SIMULATE.ampel || globalThis.DEBUG_SIMULATE.circle)) return false;
+  return true;
+}
+
+function appVersion() {
+  try {
+    if (globalThis.__appVersion) return String(globalThis.__appVersion);
+    const mf = api.runtime.getManifest && api.runtime.getManifest();
+    return mf && mf.version ? String(mf.version) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function producerInfo(settings) {
+  const sy = (settings && settings.sync) || {};
+  const isApp = !!globalThis.__appFireStartup;
+  return {
+    id: sy.producerId || null,
+    kind: isApp ? 'app' : 'extension',
+    label: sy.label || ('Börsenampel ' + (isApp ? 'App' : 'Add-on')),
+    version: appVersion(),
+  };
+}
+
+function makeProducerId() {
+  if (globalThis.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+}
+
+function syncCtx(stored) {
+  return { quotes: (stored && stored.quotes) || {}, quoteSymbols: (stored && stored.quoteSymbols) || {} };
+}
+
+// Alle Outbox-Änderungen laufen nacheinander (seq-Vergabe ist ein
+// Read-Modify-Write auf storage.local).
+let syncQueue = Promise.resolve();
+function enqueueSync(fn) {
+  const run = syncQueue.then(fn, fn);
+  syncQueue = run.catch(() => {});
+  return run;
+}
+
+// build(seq, producer, ctx) -> { events, nextSeq }
+async function emitEvents(build) {
+  return enqueueSync(async () => {
+    const { settings } = await getState();
+    if (!syncActive(settings)) return { ok: false, skipped: true };
+    const stored = await api.storage.local.get(['syncOutbox', 'syncMeta', 'quotes', 'quoteSymbols']);
+    const meta = stored.syncMeta || {};
+    const producer = producerInfo(settings);
+    const r = build((meta.seq || 0) + 1, producer, syncCtx(stored));
+    if (!r || !r.events || !r.events.length) return { ok: true, added: 0 };
+    let outbox = (stored.syncOutbox || []).concat(r.events);
+    let lost = false;
+    if (outbox.length > SYNC_OUTBOX_MAX) {
+      outbox = outbox.slice(outbox.length - SYNC_OUTBOX_MAX);
+      lost = true; // nächster Flush stellt ein Vollbild voran (needsSnapshot)
+    }
+    await api.storage.local.set({
+      syncOutbox: outbox,
+      syncMeta: Object.assign({}, meta, { seq: r.nextSeq - 1 }, lost ? { needsSnapshot: true } : null),
+    });
+    return { ok: true, added: r.events.length };
+  });
+}
+
+async function syncOnAmpelDelta(delta) {
+  const { settings } = await getState();
+  if (!syncActive(settings)) return;
+  await emitEvents((seq, producer, ctx) => eventsFromAmpelDelta(delta, { seq, producer, ctx, detectedAt: new Date().toISOString() }));
+  flushOutbox().catch(() => {});
+}
+
+async function syncOnCircleDelta(fresh, modules, oldModules) {
+  const { settings } = await getState();
+  if (!syncActive(settings)) return;
+  await emitEvents((seq, producer, ctx) => eventsFromCircleDelta(fresh, modules, { seq, producer, ctx, oldModules, detectedAt: new Date().toISOString() }));
+  flushOutbox().catch(() => {});
+}
+
+// Vollbild: beim Aktivieren, bei Versionswechsel, nach Outbox-Verlust, sonst
+// höchstens 1x/Tag; erzwungen durch "Jetzt synchronisieren".
+async function maybeEmitSnapshot(force) {
+  const state = await getState();
+  if (!syncActive(state.settings)) return { ok: false, skipped: true };
+  if (!(state.meta && state.meta.lastPollOk === true) || !state.current) return { ok: false, error: 'Kein erfolgreicher Ampel-Abruf' };
+  const stored = await api.storage.local.get(['syncMeta']);
+  const meta = stored.syncMeta || {};
+  const version = appVersion();
+  const due = force || meta.needsSnapshot || !meta.lastSnapshotAt ||
+    Date.now() - meta.lastSnapshotAt > SYNC_SNAPSHOT_MS || meta.lastSnapshotVersion !== version;
+  if (!due) return { ok: true, skipped: true };
+  const circleOk = state.circleMeta && state.circleMeta.lastPollOk === true ? state.circle : null;
+  const r = await emitEvents((seq, producer, ctx) => {
+    const payload = buildAmpelPayload({ current: state.current, circle: circleOk }, ctx);
+    const at = new Date().toISOString();
+    return { events: [makeEvent('ampel.snapshot', payload, { producer, seq, at, detectedAt: at })], nextSeq: seq + 1 };
+  });
+  if (r && r.ok && !r.skipped) {
+    const m = (await api.storage.local.get(['syncMeta'])).syncMeta || {};
+    await api.storage.local.set({ syncMeta: Object.assign({}, m, { lastSnapshotAt: Date.now(), lastSnapshotVersion: version, needsSnapshot: false }) });
+  }
+  return r;
+}
+
+// Ampel-Aktien tragen keine ISIN/WKN -> Yahoo-Namenssuche ohne Anker, nur als
+// unbestätigter Vorschlag (symbol.verified=false im Export). Häppchenweise,
+// damit kein Poll spürbar bremst und Yahoo nicht drosselt.
+async function resolveAmpelSymbolsSlowly() {
+  const state = await getState();
+  if (!syncActive(state.settings) || !state.current || !state.current.stocks) return;
+  const stored = await api.storage.local.get(['quoteSymbols', 'quotes']);
+  const symbols = stored.quoteSymbols || {};
+  const quotes = stored.quotes || {};
+  const now = Date.now();
+  let done = 0;
+  let changed = false;
+  for (const st of sortedAmpelStocks(state.current)) {
+    if (done >= SYNC_AMPEL_SYMBOLS_PER_POLL) break;
+    if (hiddenPlaceholderTitle(st.name)) continue;
+    const key = 'ampel:' + st.id;
+    const entry = symbols[key];
+    const stale = !entry || entry.v !== SYMBOL_RESOLVE_VERSION ||
+      (!entry.symbol && now - (entry.failedAt || 0) > SYMBOL_RETRY_MS);
+    if (!stale) continue;
+    done++;
+    await sleep(QUOTE_FETCH_DELAY_MS);
+    const symbol = await resolveYahooSymbol(st.name);
+    symbols[key] = symbol
+      ? { symbol, query: st.name, resolvedAt: now, v: SYMBOL_RESOLVE_VERSION, via: 'name-search' }
+      : { symbol: null, failedAt: now, v: SYMBOL_RESOLVE_VERSION };
+    if (symbol) await cachedYahooQuote(quotes, symbol, now);
+    changed = true;
+  }
+  if (changed) await api.storage.local.set({ quoteSymbols: symbols, quotes });
+}
+
+async function afterSuccessfulAmpelPoll() {
+  const { settings } = await getState();
+  if (!syncActive(settings)) return;
+  await maybeEmitSnapshot(false);
+  await flushOutbox();
+  await resolveAmpelSymbolsSlowly();
+}
+
+function makeAdapter(sy) {
+  if (sy.adapter === 'webdav') {
+    const v = validateWebdavUrl(sy.url);
+    if (!v.ok) return { error: v.error };
+    return { adapter: createWebdavAdapter({ baseUrl: sy.url, user: sy.user, password: sy.password }) };
+  }
+  return { error: 'Adapter „' + sy.adapter + '“ wird im Hintergrund nicht unterstützt' };
+}
+
+let syncFlushInFlight = null;
+function flushOutbox() {
+  if (syncFlushInFlight) return syncFlushInFlight;
+  syncFlushInFlight = doFlushOutbox().finally(() => { syncFlushInFlight = null; });
+  return syncFlushInFlight;
+}
+
+async function doFlushOutbox() {
+  const { settings } = await getState();
+  if (!syncActive(settings)) return { ok: false, skipped: true };
+  const sy = settings.sync;
+  const stored = await api.storage.local.get(['syncOutbox', 'syncMeta']);
+  if (!(stored.syncOutbox || []).length) return { ok: true, flushed: 0 };
+  if (sy.adapter === 'folder') {
+    // Nur Seitenkontexte können in den lokalen Ordner schreiben.
+    await api.storage.local.set({ syncMeta: Object.assign({}, stored.syncMeta || {}, { needsPageFlush: true }) });
+    return { ok: true, deferred: true };
+  }
+  const m = makeAdapter(sy);
+  if (m.error) {
+    await api.storage.local.set({ syncMeta: Object.assign({}, stored.syncMeta || {}, { lastError: m.error, lastErrorAt: Date.now() }) });
+    return { ok: false, error: m.error };
+  }
+  return flushOutboxWith(m.adapter, api.storage.local, producerInfo(settings));
+}
+
+async function setSyncSettings(patch) {
+  const { settings } = await getState();
+  const cur = Object.assign({}, DEFAULTS.sync, settings.sync || {});
+  const next = Object.assign({}, cur);
+  for (const k of ['enabled', 'adapter', 'url', 'user', 'password', 'label']) {
+    if (k in patch) next[k] = k === 'enabled' ? !!patch[k] : String(patch[k] == null ? '' : patch[k]);
+  }
+  if (next.adapter !== 'webdav' && next.adapter !== 'folder') next.adapter = 'webdav';
+  next.url = next.url.trim();
+  if (next.enabled && next.adapter === 'webdav') {
+    const v = validateWebdavUrl(next.url);
+    if (!v.ok) return { ok: false, error: v.error };
+  }
+  if (!next.producerId) next.producerId = makeProducerId();
+  const wasEnabled = !!cur.enabled;
+  await api.storage.local.set({ settings: Object.assign({}, settings, { sync: next }) });
+  if (next.enabled && !wasEnabled) {
+    // Frisch eingeschaltet -> sofort ein Vollbild.
+    const m = (await api.storage.local.get(['syncMeta'])).syncMeta || {};
+    await api.storage.local.set({ syncMeta: Object.assign({}, m, { needsSnapshot: true, lastError: null }) });
+    maybeEmitSnapshot(true).then(() => flushOutbox()).catch(() => {});
+  }
+  return { ok: true, sync: publicSync(next) };
+}
+
+function publicSync(sy) {
+  return Object.assign({}, sy, { password: sy.password ? '••••' : '', hasPassword: !!sy.password });
+}
+
+async function syncSelfTest() {
+  const { settings } = await getState();
+  const sy = Object.assign({}, DEFAULTS.sync, settings.sync || {});
+  if (sy.adapter !== 'webdav') return { ok: false, error: 'Der Ordner-Test läuft im Popup' };
+  const m = makeAdapter(sy);
+  if (m.error) return { ok: false, error: m.error };
+  const r = await m.adapter.selfTest();
+  if (r.ok) {
+    const meta = (await api.storage.local.get(['syncMeta'])).syncMeta || {};
+    await api.storage.local.set({ syncMeta: Object.assign({}, meta, { formatWritten: true, lastError: null, lastErrorAt: null }) });
+  }
+  return r;
+}
+
+async function syncNow() {
+  const { settings } = await getState();
+  if (!syncActive(settings)) return { ok: false, error: 'Synchronisation ist ausgeschaltet' };
+  const snap = await maybeEmitSnapshot(true);
+  if (snap && snap.error) return { ok: false, error: snap.error };
+  const r = await flushOutbox();
+  return Object.assign({}, r, { status: await getSyncStatus() });
+}
+
+async function getSyncStatus() {
+  const { settings } = await getState();
+  const stored = await api.storage.local.get(['syncOutbox', 'syncMeta']);
+  const meta = stored.syncMeta || {};
+  return {
+    ok: true,
+    sync: publicSync(Object.assign({}, DEFAULTS.sync, settings.sync || {})),
+    producer: producerInfo(settings),
+    outboxCount: (stored.syncOutbox || []).length,
+    seq: meta.seq || 0,
+    lastFlushAt: meta.lastFlushAt || null,
+    lastError: meta.lastError || null,
+    lastErrorAt: meta.lastErrorAt || null,
+    lastSnapshotAt: meta.lastSnapshotAt || null,
+    needsPageFlush: !!meta.needsPageFlush,
+  };
+}
+
+// Vollbild als Text (Support/Debug: "Snapshot kopieren" im Popup) — ohne
+// Sync-Schalter nutzbar, aber ebenfalls nur eingeloggt.
+async function syncSnapshotJson() {
+  const state = await getState();
+  if (!(state.meta && state.meta.lastPollOk === true) || !state.current) return { ok: false, error: 'Kein erfolgreicher Ampel-Abruf' };
+  if (globalThis.DEBUG_SIMULATE && (globalThis.DEBUG_SIMULATE.ampel || globalThis.DEBUG_SIMULATE.circle)) return { ok: false, error: 'TEST-Schalter aktiv' };
+  const stored = await api.storage.local.get(['quotes', 'quoteSymbols']);
+  const circleOk = state.circleMeta && state.circleMeta.lastPollOk === true ? state.circle : null;
+  const payload = buildAmpelPayload({ current: state.current, circle: circleOk }, syncCtx(stored));
+  const at = new Date().toISOString();
+  const ev = makeEvent('ampel.snapshot', payload, { producer: producerInfo(state.settings), seq: 0, at, detectedAt: at });
+  return { ok: true, text: JSON.stringify(ev, null, 2) };
 }
 
 // --- Phase 2: Rich-Text-Body einer Aktie (Tier 2) -----------------------------
@@ -1048,6 +1339,32 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       case 'setActivityDays': {
         await setActivityDays(msg.days);
         sendResponse({ ok: true });
+        break;
+      }
+      case 'setSync': {
+        sendResponse(await setSyncSettings(msg.patch || {}));
+        break;
+      }
+      case 'syncTest': {
+        sendResponse(await syncSelfTest());
+        break;
+      }
+      case 'syncNow': {
+        sendResponse(await syncNow());
+        break;
+      }
+      case 'getSyncStatus': {
+        sendResponse(await getSyncStatus());
+        break;
+      }
+      case 'syncFlushed': {
+        // Ein Seitenkontext (Popup/Standalone) hat die Outbox in den lokalen
+        // Ordner geschrieben bzw. ist dabei gescheitert -> nur Status spiegeln.
+        sendResponse(await getSyncStatus());
+        break;
+      }
+      case 'syncSnapshotJson': {
+        sendResponse(await syncSnapshotJson());
         break;
       }
       default:

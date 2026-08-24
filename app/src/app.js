@@ -229,6 +229,7 @@
     try {
       if (!Cap || !Plugins.App) return;
       const info = await Plugins.App.getInfo();
+      if (info && info.version) globalThis.__appVersion = info.version; // für den Event-Log-Producer
       const el = document.getElementById('version');
       if (el && info && info.version) el.textContent = 'App-Version ' + info.version;
     } catch (e) { /* rein informativ */ }

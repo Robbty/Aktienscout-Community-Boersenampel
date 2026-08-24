@@ -177,6 +177,46 @@
     <button id="pollNow" class="primary-btn">Jetzt prüfen</button>
     <!-- Versionsnummer: lässt Nutzer nach einem Update prüfen, ob wirklich die
          neue Version läuft (häufige Support-Frage). Klick -> Update-Historie. -->
+    <!-- Event-Log-Sync (EVENTS.md): schreibt Ampel-/Circle-Ereignisse in einen
+         Nutzer-eigenen Sync-Ordner (WebDAV oder lokaler Ordner), aus dem eine
+         Trading-App den Stand liest. Standard: zugeklappt und ausgeschaltet. -->
+    <section id="syncBlock" class="sync collapsed">
+      <div class="activity-head toggle" id="syncToggle">
+        <h2>Synchronisation <span id="syncBadge" class="sync-badge"></span></h2>
+        <span class="chev">▾</span>
+      </div>
+      <div class="sync-body">
+        <label class="settings blink-opt"><input id="syncEnabled" type="checkbox" /> Ereignisse in Sync-Ordner schreiben</label>
+        <div class="settings sync-row">
+          <label for="syncAdapter">Ziel</label>
+          <select id="syncAdapter">
+            <option value="webdav">WebDAV (Nextcloud, kDrive, Filen-Server …)</option>
+            <option value="folder">Lokaler Ordner (Cloud-Client synchronisiert)</option>
+          </select>
+        </div>
+        <div id="syncWebdav">
+          <div class="settings sync-row"><label for="syncUrl">Adresse</label><input id="syncUrl" type="url" class="wide" placeholder="https://…/remote.php/dav/files/NAME/" autocomplete="off" /></div>
+          <div class="settings sync-row"><label for="syncUser">Benutzer</label><input id="syncUser" type="text" class="wide" autocomplete="off" /></div>
+          <div class="settings sync-row"><label for="syncPassword">App-Passwort</label><input id="syncPassword" type="password" class="wide" autocomplete="off" placeholder="leer = unverändert" /></div>
+        </div>
+        <div id="syncFolder" hidden>
+          <div class="settings sync-row">
+            <button id="syncPickFolder" class="link-btn" type="button">Ordner wählen…</button>
+            <span id="syncFolderName" class="sync-muted"></span>
+          </div>
+          <p class="sync-hint" id="syncFolderUnsupported" hidden>Dieser Browser kann keine lokalen Ordner beschreiben (nur Chrome/Edge am Desktop) – bitte WebDAV verwenden.</p>
+        </div>
+        <div class="settings sync-row"><label for="syncLabel">Gerätename</label><input id="syncLabel" type="text" class="wide" placeholder="z. B. Peters Laptop" autocomplete="off" /></div>
+        <div class="settings sync-actions">
+          <button id="syncTest" class="link-btn" type="button">Verbindung testen</button>
+          <button id="syncSave" class="link-btn" type="button">Speichern</button>
+          <button id="syncNow" class="link-btn" type="button">Jetzt synchronisieren</button>
+          <button id="syncCopy" class="link-btn" type="button" title="Aktuelles Vollbild als JSON in die Zwischenablage (Support/Debug)">Snapshot kopieren</button>
+        </div>
+        <div id="syncStatus" class="sync-status"></div>
+        <p class="sync-hint">Geschrieben werden Ampelstände und Käufe/Verkäufe des Circle (keine Analysetexte) in den Unterordner <code>boersenampel/</code>. Den Ordner nicht öffentlich teilen. Details: EVENTS.md.</p>
+      </div>
+    </section>
     <div class="version"><button id="version" class="link-btn" type="button" title="Update-Historie anzeigen"></button></div>
   </footer>
 
@@ -191,6 +231,11 @@
 
   <script src="lib/ampel.js"></script>
   <script src="lib/circle.js"></script>
+  <script src="lib/quotes.js"></script>
+  <script src="lib/events.js"></script>
+  <script src="lib/sync-webdav.js"></script>
+  <script src="lib/sync-folder.js"></script>
+  <script src="lib/sync-flush.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

@@ -6,6 +6,13 @@
 > der Renderer. Die Android-App hat eigene Versionsnummern (Tags app-vX.Y.Z):
 > ihre Releases stehen hier als `## App X.Y.Z – Datum` in derselben Liste.
 
+## 0.7.0 – 24.08.2026
+- Neu: **Synchronisation** (Block ganz unten im Popup, Standard aus): Die Ampel schreibt Ampelwechsel, neue/entfernte Aktien, bearbeitete Analysen (nur der Zeitpunkt) und Circle-Käufe/-Verkäufe als Ereignis-Protokoll in einen Sync-Ordner, den du selbst besitzt – per WebDAV (Nextcloud, kDrive, Filen-Server …) oder in einen lokalen Ordner, den dein Cloud-Programm synchronisiert (nur Chrome/Edge). Daraus kann eine Trading-App den aktuellen Stand lesen, auch auf anderen Geräten. Keine Analysetexte, kein Server der Ampel.
+- „Verbindung testen", „Jetzt synchronisieren" und eine Statuszeile zeigen, ob alles ankommt; bei Fehlern warten die Ereignisse und werden beim nächsten Abruf nachgeholt.
+- „Snapshot kopieren" legt das aktuelle Vollbild als JSON in die Zwischenablage (für Support und eigene Skripte).
+- Ampel- und Circle-Tab sind unverändert.
+- Doku: EVENTS.md (Format und Regeln der Schnittstelle), README und ANLEITUNG (Einrichtung).
+
 ## 0.6.9 – 24.08.2026
 - Circle: Das Kursziel wird nicht mehr aus dem Titel gelesen, sondern aus der Zeile „7 Stück zum Kaufpreis: 575 € - Verkaufspreis: ?" im Beitrag. Steht dort „?", rechnet die Ampel Kaufpreis +10 %; steht eine Zahl, wird sie übernommen und gegen das 10-%-Ziel geprüft (Toleranz ca. 3 %) – bei starker Abweichung erscheint sie rot. Der Kurs im Titel ist nur der Tageskurs bei der letzten Bearbeitung des Eintrags und wird lediglich im Tooltip gezeigt. (Auslöser: Wells Fargo zeigte ein negatives Potenzial, weil Titel und Beitrag nicht zusammenpassten.)
 - Circle: Beträge werden auch erkannt, wenn der Autor „Euro“, „euro“ oder „EUR“ statt „€“ schreibt (z. B. „zu 124,25 $ / 107,40 Euro je Aktie“). Dollar-Werte ($, Dollar, USD) werden nie als Euro gelesen. Alle 24 laufenden und abgeschlossenen Positionen live gegengeprüft.

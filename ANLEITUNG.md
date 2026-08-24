@@ -224,3 +224,20 @@ deren Teil du nutzen willst – Aktienscout für die Ampel, Circle für den Circ
 ---
 
 Viel Spaß – und mögen deine Ampeln auf Grün stehen! 🟢🚀
+
+## Synchronisation mit einer Trading-App (optional) 🔄
+
+Die Ampel kann alle Ampelwechsel und Circle-Käufe/-Verkäufe in einen **Sync-Ordner** schreiben, den du selbst besitzt. Daraus kann eine Trading-App (oder du selbst) jederzeit den aktuellen Stand lesen – auch auf anderen Geräten. Standard: **ausgeschaltet**. Es werden keine Analysetexte geschrieben.
+
+1. Im Popup ganz unten auf **Synchronisation** klicken (der Block klappt auf).
+2. **Ziel** wählen:
+   - **WebDAV** – für Nextcloud, kDrive (Infomaniak), ownCloud, HiDrive, MagentaCloud u. a. Adresse eintragen (Nextcloud: `https://DEINE-CLOUD/remote.php/dav/files/BENUTZERNAME/`, kDrive: `https://KDRIVE-ID.connect.kdrive.infomaniak.com/`), Benutzer und ein **App-Passwort** (in der Cloud unter Sicherheit anlegen – nie das normale Passwort). Bei **Filen** startest du in der Filen-Desktop-App bzw. -CLI den lokalen WebDAV-Server und trägst dessen Adresse ein (`http://127.0.0.1:PORT/`).
+   - **Lokaler Ordner** – nur in Chrome/Edge am Computer: „Ordner wählen…" und einen Ordner nehmen, den dein Cloud-Programm synchronisiert (Filen, Proton Drive, Nextcloud-Client, Google Drive …). Der Browser fragt einmal nach der Erlaubnis.
+3. Optional einen **Gerätenamen** eintragen („Peters Laptop").
+4. **Verbindung testen** → sollte „Verbindung ok" melden. Dann Haken bei **Ereignisse in Sync-Ordner schreiben** setzen und **Speichern**. Beim Speichern fragt der Browser einmal, ob die Ampel auf deine Cloud-Adresse zugreifen darf – erlauben.
+5. Die Ampel schreibt sofort ein Vollbild und danach jede Änderung automatisch. **Jetzt synchronisieren** erzwingt ein neues Vollbild; die Statuszeile zeigt „zuletzt … · 0 offen". Ein ⚠ im Titel des Blocks heißt: Schreiben fehlgeschlagen (z. B. offline) – die Ereignisse warten und werden beim nächsten Abruf nachgeholt.
+
+Im Ordner entsteht `boersenampel/` mit einer Datei je Gerät und Tag. **Den Ordner nicht öffentlich teilen** – er enthält Daten aus den Bezahlkursen. Was genau drinsteht und wie man es liest: `EVENTS.md` im Projekt.
+
+Beim Adapter „Lokaler Ordner" schreibt die Ampel nur, während das Popup oder das eigenständige Circle-Fenster geöffnet ist (Browser-Beschränkung); WebDAV schreibt auch im Hintergrund.
+

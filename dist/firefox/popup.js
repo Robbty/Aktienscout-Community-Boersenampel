@@ -411,6 +411,7 @@ function renderAll() {
   if (state.settings && document.activeElement !== days) days.value = state.settings.activityDays || 7;
   const blink = document.getElementById('blink');
   if (state.settings) blink.checked = state.settings.blinkEnabled !== false;
+  renderSyncSettings();
 }
 
 function showChecking() {
@@ -1271,5 +1272,232 @@ document.getElementById('saveInterval').addEventListener('click', async () => {
   btn.textContent = 'Gespeichert ✓';
   setTimeout(() => (btn.textContent = 'Speichern'), 1500);
 });
+
+
+// --- Synchronisation (Event-Log, EVENTS.md) -----------------------------------
+// Einstellungen leben in state.settings.sync; der Worker schreibt per WebDAV,
+// der Adapter "lokaler Ordner" (File System Access API) kann nur hier im
+// Seitenkontext schreiben -> dieses Fenster flusht die Outbox, sobald der
+// Worker syncMeta.needsPageFlush setzt (storage.onChanged) und beim Öffnen.
+const syncEl = (id) => document.getElementById(id);
+let syncUiDirty = false; // Nutzer tippt -> nicht von renderAll überschreiben
+
+function syncSettingsView() {
+  const sy = (state && state.settings && state.settings.sync) || {};
+  return Object.assign({ enabled: false, adapter: 'webdav', url: '', user: '', label: '' }, sy);
+}
+
+function renderSyncSettings() {
+  if (syncUiDirty) return;
+  const sy = syncSettingsView();
+  syncEl('syncEnabled').checked = !!sy.enabled;
+  syncEl('syncAdapter').value = sy.adapter === 'folder' ? 'folder' : 'webdav';
+  syncEl('syncUrl').value = sy.url || '';
+  syncEl('syncUser').value = sy.user || '';
+  syncEl('syncPassword').value = '';
+  syncEl('syncPassword').placeholder = sy.password ? 'gespeichert – leer = unverändert' : 'App-Passwort';
+  syncEl('syncLabel').value = sy.label || '';
+  renderSyncAdapterFields();
+  refreshSyncStatus();
+}
+
+function renderSyncAdapterFields() {
+  const folder = syncEl('syncAdapter').value === 'folder';
+  syncEl('syncWebdav').hidden = folder;
+  syncEl('syncFolder').hidden = !folder;
+  if (folder) {
+    const supported = typeof folderSupported === 'function' && folderSupported();
+    syncEl('syncFolderUnsupported').hidden = supported;
+    syncEl('syncPickFolder').disabled = !supported;
+    if (supported) {
+      folderPermission(false).then((p) => {
+        syncEl('syncFolderName').textContent =
+          p.state === 'none' ? 'kein Ordner gewählt' :
+          p.state === 'granted' ? p.name + ' ✓' :
+          p.name + ' (Berechtigung beim nächsten Klick bestätigen)';
+      });
+    }
+  }
+}
+
+function fmtSyncTime(ts) {
+  if (!ts) return '–';
+  const d = new Date(ts);
+  return d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }) + ' ' +
+    d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+}
+
+function setSyncStatus(text, cls) {
+  const el = syncEl('syncStatus');
+  el.textContent = text || '';
+  el.className = 'sync-status' + (cls ? ' ' + cls : '');
+}
+
+async function refreshSyncStatus() {
+  const st = await send({ type: 'getSyncStatus' });
+  if (!st || !st.ok) return;
+  const badge = syncEl('syncBadge');
+  if (!st.sync.enabled) {
+    badge.textContent = '';
+    setSyncStatus('Ausgeschaltet.', '');
+    return;
+  }
+  const parts = ['zuletzt ' + fmtSyncTime(st.lastFlushAt), st.outboxCount + ' offen'];
+  if (st.lastSnapshotAt) parts.push('Vollbild ' + fmtSyncTime(st.lastSnapshotAt));
+  if (st.lastError) {
+    badge.textContent = '⚠';
+    badge.className = 'sync-badge error';
+    setSyncStatus(parts.join(' · ') + ' – Fehler: ' + st.lastError, 'error');
+  } else {
+    badge.textContent = st.outboxCount ? st.outboxCount + ' offen' : '✓';
+    badge.className = 'sync-badge';
+    setSyncStatus(parts.join(' · '), '');
+  }
+}
+
+// Outbox in den lokalen Ordner schreiben (nur Adapter "folder", nur hier möglich).
+let pageFlushRunning = false;
+async function pageFlushIfNeeded(requestPermission) {
+  const sy = syncSettingsView();
+  if (!sy.enabled || sy.adapter !== 'folder' || pageFlushRunning) return;
+  if (typeof openFolderAdapter !== 'function') return;
+  pageFlushRunning = true;
+  try {
+    const adapter = await openFolderAdapter(!!requestPermission);
+    if (!adapter) return;
+    const st = await send({ type: 'getSyncStatus' });
+    if (!st || !st.ok || !st.outboxCount) return;
+    const r = await flushOutboxWith(adapter, api.storage.local, st.producer);
+    await send({ type: 'syncFlushed', ok: r.ok, error: r.error || null });
+  } catch (e) {
+    console.warn('[Sync] Ordner-Flush', e);
+  } finally {
+    pageFlushRunning = false;
+    refreshSyncStatus();
+  }
+}
+
+for (const id of ['syncUrl', 'syncUser', 'syncPassword', 'syncLabel']) {
+  syncEl(id).addEventListener('input', () => { syncUiDirty = true; });
+}
+syncEl('syncAdapter').addEventListener('change', () => { syncUiDirty = true; renderSyncAdapterFields(); });
+syncEl('syncToggle').addEventListener('click', () => {
+  syncEl('syncBlock').classList.toggle('collapsed');
+  if (!syncEl('syncBlock').classList.contains('collapsed')) refreshSyncStatus();
+});
+
+syncEl('syncPickFolder').addEventListener('click', async () => {
+  const r = await pickFolder();
+  if (!r.ok) { setSyncStatus(r.error, 'error'); return; }
+  syncEl('syncFolderName').textContent = r.name + ' ✓';
+  setSyncStatus('Ordner „' + r.name + '“ gewählt – jetzt „Speichern“.', 'ok');
+});
+
+async function ensureHostPermission(url) {
+  const v = validateWebdavUrl(url);
+  if (!v.ok) return { ok: false, error: v.error };
+  if (!api.permissions || !api.permissions.request) return { ok: true }; // App-Shim
+  const origins = [v.origin + '/*'];
+  try {
+    const has = await api.permissions.contains({ origins });
+    if (has) return { ok: true };
+    const granted = await api.permissions.request({ origins });
+    return granted ? { ok: true } : { ok: false, error: 'Zugriff auf ' + v.origin + ' nicht erlaubt' };
+  } catch (e) {
+    return { ok: false, error: 'Berechtigung: ' + String((e && e.message) || e) };
+  }
+}
+
+function syncPatchFromForm() {
+  const patch = {
+    enabled: syncEl('syncEnabled').checked,
+    adapter: syncEl('syncAdapter').value,
+    url: syncEl('syncUrl').value.trim(),
+    user: syncEl('syncUser').value.trim(),
+    label: syncEl('syncLabel').value.trim(),
+  };
+  const pw = syncEl('syncPassword').value;
+  if (pw) patch.password = pw; // leer = gespeichertes Passwort behalten
+  return patch;
+}
+
+syncEl('syncSave').addEventListener('click', async () => {
+  const patch = syncPatchFromForm();
+  if (patch.enabled && patch.adapter === 'webdav') {
+    const perm = await ensureHostPermission(patch.url); // im Klick-Handler (Nutzergeste)
+    if (!perm.ok) { setSyncStatus(perm.error, 'error'); return; }
+  }
+  if (patch.enabled && patch.adapter === 'folder') {
+    const p = typeof folderPermission === 'function' ? await folderPermission(true) : { state: 'none' };
+    if (p.state !== 'granted') { setSyncStatus('Bitte zuerst einen Ordner wählen und den Zugriff erlauben.', 'error'); return; }
+  }
+  const r = await send({ type: 'setSync', patch });
+  if (!r || !r.ok) { setSyncStatus((r && r.error) || 'Speichern fehlgeschlagen', 'error'); return; }
+  syncUiDirty = false;
+  state = await send({ type: 'getState' });
+  renderSyncSettings();
+  const btn = syncEl('syncSave');
+  btn.textContent = 'Gespeichert ✓';
+  setTimeout(() => (btn.textContent = 'Speichern'), 1500);
+  setTimeout(() => pageFlushIfNeeded(true), 600); // Vollbild des Workers abholen
+});
+
+syncEl('syncTest').addEventListener('click', async () => {
+  const patch = syncPatchFromForm();
+  setSyncStatus('Teste…', '');
+  if (patch.adapter === 'folder') {
+    const adapter = typeof openFolderAdapter === 'function' ? await openFolderAdapter(true) : null;
+    if (!adapter) { setSyncStatus('Kein beschreibbarer Ordner gewählt.', 'error'); return; }
+    const r = await adapter.selfTest();
+    setSyncStatus(r.ok ? 'Ordner-Test erfolgreich (boersenampel/format.json geschrieben).' : 'Fehler: ' + r.error, r.ok ? 'ok' : 'error');
+    return;
+  }
+  const perm = await ensureHostPermission(patch.url);
+  if (!perm.ok) { setSyncStatus(perm.error, 'error'); return; }
+  // Test mit den Formularwerten (Passwort ggf. gespeichert) — dazu erst speichern
+  // ohne den Schalter zu verändern.
+  const saved = await send({ type: 'setSync', patch: Object.assign({}, patch, { enabled: syncSettingsView().enabled }) });
+  if (!saved || !saved.ok) { setSyncStatus((saved && saved.error) || 'Ungültige Angaben', 'error'); return; }
+  const r = await send({ type: 'syncTest' });
+  if (r && r.ok) setSyncStatus('Verbindung ok: ' + r.steps.map((s) => s.step).join(', ') + '.', 'ok');
+  else {
+    const failed = r && r.steps ? r.steps.find((s) => !s.ok) : null;
+    setSyncStatus('Fehler' + (failed ? ' bei „' + failed.step + '“' : '') + ': ' + ((r && r.error) || 'unbekannt'), 'error');
+  }
+});
+
+syncEl('syncNow').addEventListener('click', async () => {
+  const btn = syncEl('syncNow');
+  btn.disabled = true;
+  setSyncStatus('Synchronisiere…', '');
+  const r = await send({ type: 'syncNow' });
+  await pageFlushIfNeeded(true);
+  btn.disabled = false;
+  if (r && r.ok) await refreshSyncStatus();
+  else setSyncStatus('Fehler: ' + ((r && r.error) || 'unbekannt'), 'error');
+});
+
+syncEl('syncCopy').addEventListener('click', async () => {
+  const r = await send({ type: 'syncSnapshotJson' });
+  if (!r || !r.ok) { setSyncStatus('Snapshot nicht verfügbar: ' + ((r && r.error) || ''), 'error'); return; }
+  try {
+    await navigator.clipboard.writeText(r.text);
+    setSyncStatus('Snapshot in die Zwischenablage kopiert (' + Math.round(r.text.length / 1024) + ' KB).', 'ok');
+  } catch (e) {
+    setSyncStatus('Zwischenablage nicht erreichbar.', 'error');
+  }
+});
+
+// Worker signalisiert "bitte in den Ordner schreiben" bzw. neue Outbox-Einträge.
+api.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'local') return;
+  if ('syncMeta' in changes || 'syncOutbox' in changes) {
+    const meta = (changes.syncMeta && changes.syncMeta.newValue) || null;
+    if (!meta || meta.needsPageFlush) pageFlushIfNeeded(false);
+    if (!syncEl('syncBlock').classList.contains('collapsed')) refreshSyncStatus();
+  }
+});
+// Beim Öffnen: liegengebliebene Outbox in den Ordner schreiben (ohne Nachfrage).
+setTimeout(() => pageFlushIfNeeded(false), 1500);
 
 init();
