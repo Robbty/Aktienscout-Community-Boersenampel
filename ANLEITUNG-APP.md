@@ -19,9 +19,20 @@ die App von allein auf.
 ## Was du brauchst
 
 - 📱 Ein Android-Handy oder -Tablet (Android 8 oder neuer – alles ab ca. 2017).
-- 👤 Dein **Skool-Konto** (E-Mail + Passwort). Wichtig: Wenn du dich bei Skool
-  bisher nur „mit Google" anmeldest, lege dir dort vorher ein Passwort an –
-  der Google-Knopf funktioniert in der App oft nicht.
+- 👤 Dein **Skool-Konto** (E-Mail + Passwort).
+
+  ⚠️ **Meldest du dich bei Skool bisher immer „mit Google" an?** Dann hat dein
+  Skool-Konto noch gar kein eigenes Passwort – dein Google-Passwort kennt Skool
+  nicht, das funktioniert in der App nicht. Lege dir deshalb **vorher am
+  Computer ein Skool-Passwort** an. Am einfachsten so:
+  1. Gehe auf **www.skool.com/login** und tippe auf **„Passwort vergessen?"**.
+  2. Gib die E-Mail-Adresse ein, mit der du dich bei Google anmeldest.
+  3. Du bekommst eine E-Mail von Skool mit einem Link – dort ein Passwort setzen.
+     Fertig: E-Mail + dieses Passwort sind ab jetzt dein Login für die App
+     (am Computer kannst du weiterhin „mit Google" anmelden).
+
+  Alternativ, wenn du bei Skool schon eingeloggt bist: **Profilbild oben rechts →
+  Einstellungen → Reiter „Konto" → „Passwort ändern"**.
 - ⏱️ 5 Minuten Zeit.
 
 Die App kostet nichts und schickt deine Daten nirgendwohin – sie liest nur
