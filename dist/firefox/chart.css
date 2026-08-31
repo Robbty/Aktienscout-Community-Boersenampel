@@ -19,22 +19,27 @@ body {
   font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   color: var(--fg);
   background: var(--bg);
+  /* Die Seite darf NIE größer werden als das Fenster (live: Verlauf auf dem
+     Pixel ragte etwas hinaus) — bei Platznot scrollen Legende & Co. innen. */
+  overflow: hidden;
 }
 
 header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: 6px 12px;
   padding: 10px 14px;
   border-bottom: 1px solid var(--line);
   flex: none;
+  flex-wrap: wrap; /* schmale Fenster (Handy hochkant): Knöpfe unter den Titel */
 }
+.head-left { min-width: 0; }
 h1 { margin: 0; font-size: 15px; }
 .meta { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
 .head-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
-.ranges { display: flex; gap: 4px; }
+.ranges { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
 .ranges.cur { padding-left: 10px; border-left: 1px solid var(--line); }
 .ranges.cur[hidden] { display: none; }
 .ranges button {
@@ -115,6 +120,8 @@ canvas { display: block; width: 100%; height: 100%; }
 
 .legend {
   flex: none;
+  max-height: 38vh;      /* viele Schalter (Verlauf) auf kleinen Schirmen: innen scrollen */
+  overflow-y: auto;
   padding: 8px 14px;
   border-top: 1px solid var(--line);
   font-size: 11px;

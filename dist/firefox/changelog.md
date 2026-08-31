@@ -11,6 +11,12 @@
 - Auswertung: „Kaufvolumen (kumuliert)" statt „Investiert", neue Kachel „Eingesetztes Kapital".
 - Ampel: Vortags-Veränderung grün/rot, Legende über den Gruppen.
 
+## App 0.8.5 – 31.08.2026
+- Behoben: Auf schmalen Bildschirmen (Handy) war das Verlauf-Fenster etwas größer als der Bildschirm – jetzt brechen die Zeitraum-Knöpfe um, die Kurven-Schalter scrollen bei Platznot, nichts ragt mehr hinaus.
+
+## 0.8.4 – 31.08.2026
+- Chart- und Verlauf-Fenster passen sich kleinen Fenstern an: Zeitraum-Knöpfe brechen unter den Titel um, die Legende scrollt bei Platznot innen, die Seite wird nie größer als das Fenster.
+
 ## App 0.8.4 – 31.08.2026
 - Behoben: Im Hochformat nutzte die App nur den oberen Teil des Bildschirms – jetzt füllt sie das ganze Fenster; die Tab-Leiste bleibt oben, die Fußzeile unten, der Inhalt dazwischen scrollt.
 
