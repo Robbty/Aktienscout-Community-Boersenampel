@@ -6,6 +6,11 @@
 > der Renderer. Die Android-App hat eigene Versionsnummern (Tags app-vX.Y.Z):
 > ihre Releases stehen hier als `## App X.Y.Z – Datum` in derselben Liste.
 
+## App 0.8.2 – 31.08.2026
+- Neu: **Circle-Gesamtübersicht** („📈 Verlauf" neben „Auswertung"): Kurven vom ersten Kauf bis heute – Kaufvolumen, eingesetztes Kapital, aktuell im Markt, Portfolio-Wert zum Tageskurs, 1.500 €/Woche × 10, realisierte Gewinne, Potenzial, Kosten – einzeln ein-/ausblendbar, Zeitraum wie bei den Kurs-Charts (plus „1J").
+- Auswertung: „Kaufvolumen (kumuliert)" statt „Investiert", neue Kachel „Eingesetztes Kapital".
+- Ampel: Vortags-Veränderung grün/rot, Legende über den Gruppen.
+
 ## 0.8.2 – 31.08.2026
 - Verlauf: Reihenfolge der Kurven-Schalter neu (Kaufvolumen, Eingesetztes Kapital, Aktuell im Markt, Portfolio-Wert, 1.500 €/Woche × 10, Realisierte Gewinne, Potenzial, Kosten); „Annahme:" aus der Beschriftung gestrichen.
 
