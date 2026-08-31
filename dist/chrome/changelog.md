@@ -6,6 +6,11 @@
 > der Renderer. Die Android-App hat eigene Versionsnummern (Tags app-vX.Y.Z):
 > ihre Releases stehen hier als `## App X.Y.Z – Datum` in derselben Liste.
 
+## App 0.7.3 – 31.08.2026
+- Neu: Kurse in der Ampel – „Kurse laden" je Gruppe holt Kurs in € und Veränderung 24 h (zum Vortagesschluss, grün/rot), der 📈-Knopf je Aktie öffnet den Chart. Nichts lädt automatisch.
+- Verbessert: Zuordnung Aktienname → Börsensymbol (Bayer wurde vorher fälschlich als BMW erkannt; alle Ampel-Aktien lösen jetzt auf).
+- Enthält außerdem die Synchronisation mit einem Sync-Ordner (WebDAV) aus Version 0.7.0 der Erweiterung.
+
 ## 0.7.3 – 31.08.2026
 - Über den Ampel-Gruppen steht jetzt eine kleine Legende, sobald Kurse geladen sind: „Kurs in € · darunter Veränderung 24 h (zum Vortagesschluss)".
 
