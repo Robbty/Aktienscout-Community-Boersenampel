@@ -11,6 +11,9 @@
 - Auswertung: „Kaufvolumen (kumuliert)" statt „Investiert", neue Kachel „Eingesetztes Kapital".
 - Ampel: Vortags-Veränderung grün/rot, Legende über den Gruppen.
 
+## App 0.8.3 – 31.08.2026
+- Kurs-Charts mit Zeitraum „1J"; kleine drehende Lade-Anzeige bei allen Ladevorgängen.
+
 ## 0.8.3 – 31.08.2026
 - Kurs-Charts: neuer Zeitraum-Knopf **„1J"** (ein Jahr), wie im Verlauf.
 - Ladevorgänge (Login-Prüfung, „Jetzt prüfen", „Kurse laden", Analyse-Text, Charts, Verlauf) zeigen jetzt einen kleinen drehenden Ring – man sieht, dass etwas passiert, ohne dass es stört.
