@@ -15,7 +15,7 @@
 - Kurs-Charts mit Zeitraum „1J"; kleine drehende Lade-Anzeige bei allen Ladevorgängen.
 
 ## 0.8.3 – 31.08.2026
-- Doku: Die Anleitungen lassen sich jetzt als PDF mit farbigen Symbolen erzeugen (`node tools/md2pdf.mjs ANLEITUNG-APP.md`). App-Anleitung: genau erklärt, wie man sich ein Skool-Passwort anlegt, wenn man sich bisher nur „mit Google" anmeldet.
+- Doku: Die Anleitungen lassen sich jetzt als PDF mit farbigen Symbolen erzeugen (`node tools/md2pdf.mjs ANLEITUNG-APP.md`). App-Anleitung: genau erklärt, wie man sich ein Skool-Passwort anlegt, wenn man sich bisher nur „mit Google" anmeldet; liegt jetzt auch als `ANLEITUNG-APP.pdf` im Projekt.
 - Kurs-Charts: neuer Zeitraum-Knopf **„1J"** (ein Jahr), wie im Verlauf.
 - Ladevorgänge (Login-Prüfung, „Jetzt prüfen", „Kurse laden", Analyse-Text, Charts, Verlauf) zeigen jetzt einen kleinen drehenden Ring – man sieht, dass etwas passiert, ohne dass es stört.
 

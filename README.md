@@ -79,7 +79,7 @@ Anschließend auf das Ampel-Symbol klicken und **„Jetzt prüfen"** – der ers
 Die komplette Börsenampel gibt es auch als Android-App (gleiche Oberfläche, gleiche Auswertung): einmal mit dem Skool-Konto anmelden, fertig – auf Wunsch mit **Benachrichtigungen auch bei geschlossener App**. Neue Versionen meldet die App von selbst.
 
 - **Herunterladen:** [neueste Version (APK)](https://github.com/Robbty/Aktienscout-Community-Boersenampel/releases/latest)
-- **Schritt-für-Schritt-Anleitung:** [ANLEITUNG-APP.md](ANLEITUNG-APP.md)
+- **Schritt-für-Schritt-Anleitung:** [ANLEITUNG-APP.md](ANLEITUNG-APP.md) – auch als [PDF zum Weitergeben](ANLEITUNG-APP.pdf)
 - **Technik/Entwickler:** [`app/README.md`](app/README.md) – ein Capacitor-WebView-Wrapper um denselben `extension/`-Code (`cd app && npm install && npm run build && npm run apk`).
 
 ## Wie es funktioniert (kurz)
