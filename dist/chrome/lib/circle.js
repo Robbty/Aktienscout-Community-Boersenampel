@@ -433,11 +433,63 @@ function computePortfolio(modules) {
   }
 
   if (statBest) res.statistik = statBest.stat;
+  const cap = computeCapitalNeed(res.positions);
+  res.capitalNeed = cap.capitalNeed;
+  res.capitalNeedUndated = cap.undated;
   res.investedCumulative = round2(res.investedCumulative);
   res.deployedOpen = round2(res.deployedOpen);
   res.realized = round2(res.realized);
   res.unrealizedTotal = round2(res.unrealizedTotal);
   return res;
+}
+
+// --- Eingesetztes Kapital (Untergrenze der Einzahlungen) --------------------------
+// investedCumulative ist der UMSCHLAG (jeder Kauf zählt, auch aus wieder angelegten
+// Erlösen). Wie viel Geld tatsächlich von außen kommen musste, ist das Maximum von
+// (Käufe − Verkaufserlöse) im Zeitverlauf, tagesgenau am Tagesende gerechnet —
+// identisch zur Kurve "Eingesetztes Kapital" in lib/portfolio.js. Verkaufsdatum
+// fehlt -> Kauftag + Haltedauer; ohne Kaufdatum wird die Position an den Anfang
+// gestellt und gezählt (undated).
+function computeCapitalNeed(positions) {
+  const DAY = 86400000;
+  const events = []; // { t, buy, proceeds }
+  let undated = 0;
+  const dated = [];
+  for (const p of positions || []) {
+    const buy = p.buyDate ? parseGermanDate(p.buyDate) : null;
+    dated.push({ p, buy });
+  }
+  const known = dated.filter((d) => d.buy != null).map((d) => d.buy);
+  const start = known.length ? Math.min(...known) : 0;
+  for (const { p, buy } of dated) {
+    const totalBuy = p.totalBuyEur != null ? p.totalBuyEur : 0;
+    let b = buy;
+    if (b == null) { b = start; undated++; }
+    events.push({ t: b, buy: totalBuy, proceeds: 0 });
+    if (p.status === 'closed') {
+      const sd = p.sellDate ? parseGermanDate(p.sellDate) : null;
+      let sell = sd != null ? sd : b + (p.holdingDays || 0) * DAY;
+      if (sell < b) sell = b;
+      const proceeds = p.totalSellEur != null ? p.totalSellEur
+        : p.ertragEur != null ? totalBuy + p.ertragEur : totalBuy;
+      events.push({ t: sell, buy: 0, proceeds });
+    }
+  }
+  // Tagesende: alle Ereignisse eines Tages zusammen verbuchen.
+  const dayOf = (t) => { const d = new Date(t); return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime(); };
+  const byDay = new Map();
+  for (const e of events) {
+    const k = dayOf(e.t);
+    const cur = byDay.get(k) || 0;
+    byDay.set(k, cur + e.buy - e.proceeds);
+  }
+  let net = 0;
+  let max = 0;
+  for (const k of Array.from(byDay.keys()).sort((a, b) => a - b)) {
+    net += byDay.get(k);
+    if (net > max) max = net;
+  }
+  return { capitalNeed: Math.round(max * 100) / 100, undated };
 }
 
 // --- Kauf-/Verkaufs-Ereignisse zwischen zwei Modul-Ständen -----------------------
@@ -530,6 +582,7 @@ if (typeof globalThis !== 'undefined') {
   globalThis.classifyCircleAccess = classifyCircleAccess;
   globalThis.parseTradeBody = parseTradeBody;
   globalThis.parseStatistik = parseStatistik;
+  globalThis.computeCapitalNeed = computeCapitalNeed;
   globalThis.computePortfolio = computePortfolio;
   globalThis.circleHiddenTitle = circleHiddenTitle;
   globalThis.circlePlaceholder = circlePlaceholder;

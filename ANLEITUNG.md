@@ -128,7 +128,8 @@ Der Circle-Tab schaut in die Community **„Der Circle zur ersten Million"**. Do
 
 Das Add-on rechnet alles für dich zusammen:
 
-- 💰 **Investiert** – wie viel Geld insgesamt eingesetzt wurde.
+- 💰 **Kaufvolumen (kumuliert)** – die Summe aller Käufe. Achtung: Geld, das aus einem Verkauf wieder angelegt wurde, zählt hier erneut – das ist der Umschlag, nicht das eingezahlte Geld.
+- 🏦 **Eingesetztes Kapital** – wie viel Geld mindestens von außen kommen musste, damit alle Käufe bezahlt werden konnten (Käufe minus Verkaufserlöse, der höchste Stand im Verlauf). Lässt sich mit der „eingesetzt"-Angabe des Autors vergleichen.
 - 📈 **Aktuell im Markt** – wie viel gerade in laufenden Käufen steckt.
 - ✅ **Realisierte Gewinne** – was bei den Verkäufen herauskam.
 - 🔮 **Potenzial (Kursziel)** – was drin ist, wenn alle laufenden Positionen ihr Kursziel erreichen.
@@ -165,9 +166,9 @@ Du bekommst es auch direkt über den kleinen Knopf **„In eigenem Fenster öffn
 **Die Gesamtübersicht 📉.** Neben „Auswertung" steht der Knopf **„📈 Verlauf"**. Er öffnet ein
 Fenster mit dem Verlauf des ganzen Circle-Depots – vom ersten Kauf bis heute, bedient wie die
 Kurs-Charts (Knöpfe oben, Auswahl-Leiste unten, dazu „1J"). Unten stehen die Kurven mit Häkchen:
-die vier Zahlen der Auswertung, der **Wert des Depots zum Tageskurs**, der **Kapitalbedarf**
+die Zahlen der Auswertung, der **Wert des Depots zum Tageskurs**, das **eingesetzte Kapital**
 (so viel muss mindestens eingezahlt worden sein, damit alle Käufe bezahlt werden konnten), die
-Annahme **„10 Wochen je 1.500 €"** zum Vergleich – liegt der Kapitalbedarf darüber, gab es
+Annahme **„10 Wochen je 1.500 €"** zum Vergleich – liegt das eingesetzte Kapital darüber, gab es
 Sonderzahlungen – und die **geschätzten Kosten** (Bruttogewinne minus „Zuwachs" laut Statistik
 des Autors). Häkchen weg = Kurve weg, und die Skala passt sich den übrigen an. Mit der Maus über
 dem Chart siehst du alle Werte eines Tages.

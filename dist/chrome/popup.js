@@ -1114,6 +1114,10 @@ function renderCircle() {
     }
   };
   setStat('cInvested', pf.investedCumulative);
+  setStat('cCapital', pf.capitalNeed != null ? pf.capitalNeed : 0);
+  if (pf.capitalNeedUndated) {
+    document.getElementById('cCapital').title = pf.capitalNeedUndated + ' Position(en) ohne Kaufdatum – am Anfang eingerechnet';
+  }
   setStat('cDeployed', pf.deployedOpen);
   setStat('cRealized', pf.realized, true);
   setStat('cUnrealized', pf.unrealizedTotal, true);

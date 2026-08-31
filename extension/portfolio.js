@@ -21,12 +21,12 @@ const DAY_MS = 86400000;
 const nowSec = () => Date.now() / 1000;
 
 const CURVES = [
-  { key: 'invested', label: 'Investiert (kumuliert)', color: '#5f6368' },
+  { key: 'invested', label: 'Kaufvolumen (kumuliert)', color: '#5f6368' },
   { key: 'deployed', label: 'Aktuell im Markt', color: '#1a73e8' },
   { key: 'realized', label: 'Realisierte Gewinne', color: '#1e8e3e' },
   { key: 'potential', label: 'Potenzial (Kursziel)', color: '#d4a017' },
   { key: 'value', label: 'Portfolio-Wert (Tageskurs ≈ €)', color: '#8e24aa' },
-  { key: 'cashNeed', label: 'Kapitalbedarf (Mindest-Einzahlung)', color: '#e8710a' },
+  { key: 'cashNeed', label: 'Eingesetztes Kapital (Untergrenze)', color: '#e8710a' },
   { key: 'deposits', label: 'Annahme: 1.500 €/Woche × 10', color: '#e8710a', dashed: true },
   { key: 'costs', label: 'Kosten (geschätzt)', color: '#d93025' },
 ];
@@ -427,8 +427,10 @@ function renderLegend() {
         ? 'Kostenquote ' + fmtNum(result.costRate * 100, 1) + ' % = (realisierte Gewinne brutto ' + fmtEur(result.realizedNow) +
           ' − Zuwachs laut Autor ' + fmtEur(result.zuwachs) + ') / brutto, proportional auf den Verlauf verteilt (Näherung).'
         : 'Nicht verfügbar: dafür braucht es die „Statistik"-Angabe „Zuwachs" des Autors und realisierte Gewinne.';
+    } else if (c.key === 'invested') {
+      label.title = 'Umschlag: Summe aller Kaufsummen – Käufe aus wieder angelegten Erlösen zählen erneut. Was tatsächlich von außen kam, zeigt „Eingesetztes Kapital".';
     } else if (c.key === 'cashNeed') {
-      label.title = 'Harte Untergrenze der Einzahlungen: Maximum von (Käufe − Verkaufserlöse) bis zum jeweiligen Tag. Tatsächlich eingezahltes, ungenutztes Geld ist nicht erkennbar.';
+      label.title = 'Harte Untergrenze der Einzahlungen: Maximum von (Käufe − Verkaufserlöse) bis zum jeweiligen Tag. Tatsächlich eingezahltes, ungenutztes Geld ist nicht erkennbar. Liegt die Kurve über der 1.500-€-Annahme, gab es Sonderzahlungen.';
     } else if (c.key === 'deposits') {
       label.title = 'Aussage des Circle-Inhabers: 10 Wochen je 1.500 € ab dem ersten Kauf. Liegt der Kapitalbedarf darüber, müssen Sonderzahlungen geflossen sein.';
     } else if (c.key === 'value') {

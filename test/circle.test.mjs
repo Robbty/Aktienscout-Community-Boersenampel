@@ -521,4 +521,29 @@ assert.deepEqual(
   'alles aktuell -> keine Abrufe',
 );
 
+// --- Eingesetztes Kapital (Untergrenze der Einzahlungen) --------------------------
+{
+  const { computeCapitalNeed } = globalThis;
+  // 900 € gekauft, 400 € davon mit 40 € Gewinn verkauft, 300 € aus dem Erlös neu gekauft:
+  // Umschlag 1.200 €, aber von außen mussten nur 900 € kommen.
+  const positions = [
+    { id: 'a', status: 'open', buyDate: '01.06.2026', totalBuyEur: 500 },
+    { id: 'b', status: 'closed', buyDate: '01.06.2026', sellDate: '04.06.2026', totalBuyEur: 400, totalSellEur: 440, ertragEur: 40 },
+    { id: 'c', status: 'open', buyDate: '06.06.2026', totalBuyEur: 300 },
+  ];
+  assert.deepEqual(computeCapitalNeed(positions), { capitalNeed: 900, undated: 0 });
+  // Kauf am Verkaufstag: Erlös des Tages steht zur Verfügung (Tagesende-Rechnung).
+  assert.equal(computeCapitalNeed([
+    { status: 'closed', buyDate: '01.06.2026', sellDate: '04.06.2026', totalBuyEur: 400, totalSellEur: 440 },
+    { status: 'open', buyDate: '04.06.2026', totalBuyEur: 430 },
+  ]).capitalNeed, 400);
+  // Verkaufsdatum aus Haltedauer; Erlös aus Ertrag; ohne Kaufdatum -> Anfang, gezählt.
+  assert.deepEqual(computeCapitalNeed([
+    { status: 'closed', buyDate: '01.06.2026', holdingDays: 3, totalBuyEur: 400, ertragEur: 40 },
+    { status: 'open', buyDate: '10.06.2026', totalBuyEur: 500 },
+    { status: 'open', totalBuyEur: 100 },
+  ]), { capitalNeed: 560, undated: 1 }, '400+100 am Anfang, −440 am Tag 4, +500 am Tag 10 = 560');
+  assert.deepEqual(computeCapitalNeed([]), { capitalNeed: 0, undated: 0 });
+}
+
 console.log('circle.test.mjs: alle Assertions bestanden ✓');

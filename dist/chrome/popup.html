@@ -99,7 +99,8 @@
           title="Gesamtübersicht als Chart: Verlauf der vier Summen, Portfolio-Wert zum Tageskurs, Kapitalbedarf und Kosten – vom ersten Kauf bis heute">📈 Verlauf</button>
       </h2>
       <div class="stat-grid">
-        <div class="stat"><span class="stat-label">Investiert (kumuliert)</span><span class="stat-value" id="cInvested"></span></div>
+        <div class="stat"><span class="stat-label" title="Summe aller Kaufsummen (Umschlag) – auch Käufe aus wieder angelegten Verkaufserlösen zählen erneut">Kaufvolumen (kumuliert)</span><span class="stat-value" id="cInvested"></span></div>
+        <div class="stat"><span class="stat-label" title="Wie viel Geld mindestens von außen kommen musste: Maximum von (Käufe − Verkaufserlöse) im Zeitverlauf. Wieder angelegte Erlöse zählen nicht doppelt. Ungenutzt eingezahltes Geld ist nicht erkennbar – daher eine Untergrenze.">Eingesetztes Kapital</span><span class="stat-value" id="cCapital"></span></div>
         <div class="stat"><span class="stat-label">Aktuell im Markt</span><span class="stat-value" id="cDeployed"></span></div>
         <div class="stat"><span class="stat-label">Realisierte Gewinne</span><span class="stat-value" id="cRealized"></span></div>
         <div class="stat"><span class="stat-label" title="Summe der offenen Positionen, wenn alle ihr Kursziel erreichen">Potenzial (Kursziel)</span><span class="stat-value" id="cUnrealized"></span></div>

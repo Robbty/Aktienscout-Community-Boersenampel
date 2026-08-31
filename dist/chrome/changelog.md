@@ -6,6 +6,10 @@
 > der Renderer. Die Android-App hat eigene Versionsnummern (Tags app-vX.Y.Z):
 > ihre Releases stehen hier als `## App X.Y.Z – Datum` in derselben Liste.
 
+## 0.8.1 – 31.08.2026
+- Auswertung: „Investiert (kumuliert)" heißt jetzt ehrlich **„Kaufvolumen (kumuliert)"** – es ist der Umschlag, wieder angelegte Verkaufserlöse zählen darin erneut. Neu daneben: **„Eingesetztes Kapital"** – wie viel Geld mindestens von außen kommen musste (Käufe minus Verkaufserlöse, höchster Stand im Verlauf). Damit lässt sich die „eingesetzt"-Angabe des Autors direkt vergleichen.
+- Verlauf: die Kurven heißen entsprechend „Kaufvolumen (kumuliert)" und „Eingesetztes Kapital (Untergrenze)".
+
 ## 0.8.0 – 31.08.2026
 - Neu: **Circle-Gesamtübersicht als Kurvendiagramm** – Knopf „📈 Verlauf" im Block „Auswertung". Zeitachse vom ersten Kauf bis heute, Bedienung wie die Kurs-Charts (Auswahl-Leiste unten, Knöpfe Gesamt / 12h / Tage / Wochen / 1M / 3M / **1J**). Kurven: Investiert (kumuliert), Aktuell im Markt, Realisierte Gewinne, Potenzial (Kursziel), **Portfolio-Wert zum Tageskurs** (laufende Positionen mit den Kursverläufen von Yahoo Finance bewertet, Fremdwährungen mit dem heutigen Wechselkurs), **Kapitalbedarf** (harte Untergrenze der Einzahlungen: Käufe minus Verkaufserlöse, Maximum im Verlauf), die **Annahme „10 Wochen je 1.500 €"** als Vergleichslinie und **Kosten (geschätzt)** aus realisierten Bruttogewinnen minus „Zuwachs" laut Autor-Statistik. Jede Kurve lässt sich per Häkchen ein-/ausblenden, die Achse passt sich an; Mauszeiger über dem Chart zeigt alle Werte des Tages.
 - Für die Wert-Kurve löst die Ampel beim Klick auch die Börsensymbole der bereits verkauften Positionen auf (einmalig, gemerkt); Kursverläufe werden lokal zwischengespeichert. Positionen ohne Kursverlauf zählen mit ihrer Kaufsumme – das steht dann unter der Legende.
