@@ -20,14 +20,15 @@ const DAY = 86400;
 const DAY_MS = 86400000;
 const nowSec = () => Date.now() / 1000;
 
+// Reihenfolge = Reihenfolge der Schalter in der Legende (Wunsch des Nutzers).
 const CURVES = [
   { key: 'invested', label: 'Kaufvolumen (kumuliert)', color: '#5f6368' },
+  { key: 'cashNeed', label: 'Eingesetztes Kapital (Untergrenze)', color: '#e8710a' },
   { key: 'deployed', label: 'Aktuell im Markt', color: '#1a73e8' },
+  { key: 'deposits', label: '1.500 €/Woche × 10', color: '#e8710a', dashed: true },
   { key: 'realized', label: 'Realisierte Gewinne', color: '#1e8e3e' },
   { key: 'potential', label: 'Potenzial (Kursziel)', color: '#d4a017' },
   { key: 'value', label: 'Portfolio-Wert (Tageskurs ≈ €)', color: '#8e24aa' },
-  { key: 'cashNeed', label: 'Eingesetztes Kapital (Untergrenze)', color: '#e8710a' },
-  { key: 'deposits', label: 'Annahme: 1.500 €/Woche × 10', color: '#e8710a', dashed: true },
   { key: 'costs', label: 'Kosten (geschätzt)', color: '#d93025' },
 ];
 const PRESETS = { '12h': 12 * 3600, tage: 7 * DAY, wochen: 21 * DAY, '1mo': 30 * DAY, '3mo': 91 * DAY, '1y': 365 * DAY };

@@ -6,6 +6,9 @@
 > der Renderer. Die Android-App hat eigene Versionsnummern (Tags app-vX.Y.Z):
 > ihre Releases stehen hier als `## App X.Y.Z – Datum` in derselben Liste.
 
+## 0.8.2 – 31.08.2026
+- Verlauf: Reihenfolge der Kurven-Schalter neu (Kaufvolumen, Eingesetztes Kapital, Aktuell im Markt, 1.500 €/Woche × 10, Realisierte Gewinne, Potenzial, Portfolio-Wert, Kosten); „Annahme:" aus der Beschriftung gestrichen.
+
 ## 0.8.1 – 31.08.2026
 - Auswertung: „Investiert (kumuliert)" heißt jetzt ehrlich **„Kaufvolumen (kumuliert)"** – es ist der Umschlag, wieder angelegte Verkaufserlöse zählen darin erneut. Neu daneben: **„Eingesetztes Kapital"** – wie viel Geld mindestens von außen kommen musste (Käufe minus Verkaufserlöse, höchster Stand im Verlauf). Damit lässt sich die „eingesetzt"-Angabe des Autors direkt vergleichen.
 - Verlauf: die Kurven heißen entsprechend „Kaufvolumen (kumuliert)" und „Eingesetztes Kapital (Untergrenze)".
