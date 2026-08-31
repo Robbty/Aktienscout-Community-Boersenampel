@@ -133,6 +133,7 @@ body.searching #activity { display: none; }
 .stock-quote.stale { opacity: .55; }
 .stock-quote.muted { color: var(--muted); }
 /* Die Vortags-Veränderung ist das Signal -> grün/rot (der Kurs selbst bleibt neutral). */
+.quote-legend { text-align: right; font-size: 10px; color: var(--muted); padding: 2px 12px 0; }
 .stock-quote.pos .pct { color: var(--green); }
 .stock-quote.neg .pct { color: var(--red); }
 .stock-list .chart-btn { flex: none; }

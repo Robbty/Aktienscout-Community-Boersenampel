@@ -161,6 +161,15 @@ function renderGroups() {
   const groups = groupedStocks();
   root.innerHTML = '';
 
+  // Legende, sobald mindestens ein Kurs sichtbar ist: was die Zahlen bedeuten.
+  if (Object.values(ampelQuotes).some((q) => q && q.priceEur != null)) {
+    const legend = document.createElement('div');
+    legend.className = 'quote-legend';
+    legend.textContent = 'Kurs in € · darunter Veränderung 24 h (zum Vortagesschluss)';
+    legend.title = 'Kurse von Yahoo Finance. Die Prozentzahl vergleicht den aktuellen Kurs mit dem Schlusskurs des Vortags.';
+    root.appendChild(legend);
+  }
+
   for (const color of SECTION_ORDER) {
     const all = groups[color];
     if (!all || all.length === 0) continue;
@@ -448,7 +457,7 @@ function ampelQuoteCell(s) {
     (q.currency && q.currency !== 'EUR' ? ' · ' + q.price.toLocaleString('de-DE') + ' ' + q.currency : '') +
     ' · Stand ' + fmtTime(q.at) +
     (q.stale ? ' (älter als 5 Min. – „Kurse laden" aktualisiert)' : '') +
-    ' · darunter: Veränderung zum Vortagesschluss';
+    ' · darunter: Veränderung 24 h (zum Vortagesschluss)';
   if (q.changePct != null) {
     const cls = signClass(q.changePct);
     if (cls) cell.classList.add(cls);

@@ -6,6 +6,9 @@
 > der Renderer. Die Android-App hat eigene Versionsnummern (Tags app-vX.Y.Z):
 > ihre Releases stehen hier als `## App X.Y.Z – Datum` in derselben Liste.
 
+## 0.7.3 – 31.08.2026
+- Über den Ampel-Gruppen steht jetzt eine kleine Legende, sobald Kurse geladen sind: „Kurs in € · darunter Veränderung 24 h (zum Vortagesschluss)".
+
 ## 0.7.2 – 31.08.2026
 - Behoben: Die Vortags-Veränderung unter dem Ampel-Kurs war immer grau – jetzt grün (gestiegen) bzw. rot (gefallen).
 
