@@ -6,6 +6,9 @@
 > der Renderer. Die Android-App hat eigene Versionsnummern (Tags app-vX.Y.Z):
 > ihre Releases stehen hier als `## App X.Y.Z – Datum` in derselben Liste.
 
+## 0.7.2 – 31.08.2026
+- Behoben: Die Vortags-Veränderung unter dem Ampel-Kurs war immer grau – jetzt grün (gestiegen) bzw. rot (gefallen).
+
 ## 0.7.1 – 31.08.2026
 - Neu: **Kurse in der Ampel.** Jede Ampel-Gruppe hat jetzt einen Knopf „Kurse laden" – er holt für alle Aktien der Gruppe den aktuellen Börsenkurs (Yahoo Finance, in €) und zeigt darunter, um wie viel Prozent der Kurs gegenüber dem Vortagesschluss gestiegen oder gefallen ist. Nichts wird von selbst geladen (die Ampel führt über 50 Aktien) – nur auf Klick. Einmal ermittelte Börsensymbole merkt sich die Ampel dauerhaft, Kurse 5 Minuten; beim nächsten Öffnen stehen bekannte Kurse sofort wieder da (leicht ausgegraut, wenn älter als 5 Minuten). Das Laden läuft parallel und gebündelt, die Zeilen füllen sich nach und nach.
 - Neu: **📈-Knopf je Ampel-Aktie** öffnet den Kurs-Chart – wie im Circle, nur ohne Einkaufs-/Kursziel-Linie. Ist das Symbol noch unbekannt, wird es beim Klick ermittelt (nur für diese eine Aktie).
