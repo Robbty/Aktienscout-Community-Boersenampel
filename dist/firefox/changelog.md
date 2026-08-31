@@ -11,6 +11,9 @@
 - Auswertung: „Kaufvolumen (kumuliert)" statt „Investiert", neue Kachel „Eingesetztes Kapital".
 - Ampel: Vortags-Veränderung grün/rot, Legende über den Gruppen.
 
+## App 0.8.4 – 31.08.2026
+- Behoben: Im Hochformat nutzte die App nur den oberen Teil des Bildschirms – jetzt füllt sie das ganze Fenster; die Tab-Leiste bleibt oben, die Fußzeile unten, der Inhalt dazwischen scrollt.
+
 ## App 0.8.3 – 31.08.2026
 - Kurs-Charts mit Zeitraum „1J"; kleine drehende Lade-Anzeige bei allen Ladevorgängen.
 
