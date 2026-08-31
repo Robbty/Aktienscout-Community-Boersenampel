@@ -162,6 +162,16 @@ Du bekommst es auch direkt über den kleinen Knopf **„In eigenem Fenster öffn
 > Die Kurse kommen kostenlos von Yahoo Finance. Wenn dort mal nichts kommt,
 > steht in der Spalte einfach „–" – alles andere funktioniert normal weiter.
 
+**Die Gesamtübersicht 📉.** Neben „Auswertung" steht der Knopf **„📈 Verlauf"**. Er öffnet ein
+Fenster mit dem Verlauf des ganzen Circle-Depots – vom ersten Kauf bis heute, bedient wie die
+Kurs-Charts (Knöpfe oben, Auswahl-Leiste unten, dazu „1J"). Unten stehen die Kurven mit Häkchen:
+die vier Zahlen der Auswertung, der **Wert des Depots zum Tageskurs**, der **Kapitalbedarf**
+(so viel muss mindestens eingezahlt worden sein, damit alle Käufe bezahlt werden konnten), die
+Annahme **„10 Wochen je 1.500 €"** zum Vergleich – liegt der Kapitalbedarf darüber, gab es
+Sonderzahlungen – und die **geschätzten Kosten** (Bruttogewinne minus „Zuwachs" laut Statistik
+des Autors). Häkchen weg = Kurve weg, und die Skala passt sich den übrigen an. Mit der Maus über
+dem Chart siehst du alle Werte eines Tages.
+
 **Und du verpasst nichts:** Wird eine Aktie **gekauft oder verkauft**, meldet sich das Add-on –
 mit einer Benachrichtigung und einem **goldenen Punkt** auf dem Symbol. 🟡
 

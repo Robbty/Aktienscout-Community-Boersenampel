@@ -95,6 +95,8 @@ Das war's mit der Einrichtung. Die Anmeldung bleibt dauerhaft gespeichert.
   die Tabelle (zweiter Tipp dreht die Richtung).
 - **📈-Knopf:** öffnet den Kurs-Chart einer Position. Zurück kommst du mit dem
   Knopf **„‹ Zurück"** unten rechts oder der Zurück-Geste deines Handys.
+- **„📈 Verlauf"** neben „Auswertung": die Gesamtübersicht des Circle-Depots als
+  Kurven (Summen, Depot-Wert, Kapitalbedarf, Kosten) – ab App-Version 0.8.0.
 - **„Jetzt prüfen":** holt jederzeit den frischen Stand.
 
 ## Benachrichtigungen auch bei geschlossener App 🔔 (freiwillig)

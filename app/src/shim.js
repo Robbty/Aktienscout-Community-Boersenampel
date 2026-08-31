@@ -220,16 +220,15 @@
     },
   };
 
-  // windows.create gibt es in der App nur für zwei bekannte Fälle:
-  //  - chart.html?…      -> als eigene Seite laden (Android-Zurück führt zurück)
-  //  - popup.html?standalone=1 -> No-op: die App IST bereits die Circle-Ansicht
+  // windows.create gibt es in der App nur für bekannte Fälle:
+  //  - chart.html?… / portfolio.html -> als eigene Seite laden (Android-Zurück
+  //    führt zurück)
+  //  - popup.html?standalone=1 -> No-op: die App IST bereits die Ansicht
   const windows = {
     async create(data) {
       const url = (data && data.url) || '';
-      if (url.includes('chart.html')) {
-        const i = url.indexOf('chart.html');
-        location.assign(url.slice(i));
-      }
+      const m = /(chart|portfolio)\.html/.exec(url);
+      if (m) location.assign(url.slice(m.index));
       return { id: 1 };
     },
     async update() {},

@@ -739,6 +739,30 @@ function openChartWindow(p, q) {
   window.close();
 }
 
+// Gesamtübersicht (portfolio.html): vorher im Worker die Symbole ALLER
+// Positionen (auch verkaufter) auflösen — die Seite liest sie aus dem Speicher
+// und lädt die Kursverläufe selbst. Fenster-Choreografie wie beim Chart.
+document.getElementById('portfolioChartBtn').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = '… Symbole';
+  try { await send({ type: 'circleSymbols' }); } catch (err) { /* Seite zeigt dann "ohne Kursverlauf" */ }
+  btn.disabled = false;
+  btn.textContent = label;
+  if (STANDALONE || !popupPort) {
+    send({ type: 'openPortfolio' });
+    return;
+  }
+  popupPort.postMessage({
+    type: 'openPortfolio',
+    spawnCircle: true,
+    tab: 'circle',
+    pos: { left: window.screenX, top: window.screenY },
+  });
+  window.close();
+});
+
 // Spalten: Aktie | Stück | EK-Preis | Einsatz | Akt. Kurs (Yahoo, mit % zum EK)
 // | Kursziel (geplanter Verkaufskurs des Autors, mit Potenzial-%) | Tage | Chart.
 function renderCircleOpenTable(allRows) {

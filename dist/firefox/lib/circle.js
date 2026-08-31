@@ -374,6 +374,8 @@ function computePortfolio(modules) {
       ertragEur: null,
       ertragPct: null,
       holdingDays: ti.holdingDays != null ? ti.holdingDays : null,
+      sellDate: tr.sellDate || null,                                // für die Zeitreihen (portfolio.js)
+      totalSellEur: tr.totalSellEur != null ? tr.totalSellEur : null,
       incomplete,
     };
 

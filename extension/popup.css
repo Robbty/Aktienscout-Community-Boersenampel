@@ -209,6 +209,7 @@ footer { border-top: 1px solid var(--line); padding: 8px 12px; display: flex; fl
   padding: 1px 5px; font-size: 12px; cursor: pointer; line-height: 1.4;
 }
 .chart-btn:disabled { opacity: .4; cursor: default; }
+.circle-block h2 .chart-btn { text-transform: none; letter-spacing: 0; margin-left: 8px; font-size: 11px; color: var(--fg); }
 .pos-table tr.incomplete { opacity: .55; }
 .pos-table tfoot td { border-top: 1px solid var(--line); border-bottom: none; font-weight: 700; }
 /* Positions-Abschnitte auf-/zuklappbar (gleiches Muster wie "Zuletzt bearbeitet") */

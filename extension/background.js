@@ -597,6 +597,82 @@ async function quoteEur(quotes, qt, now) {
   return fx ? convertToEur(qt.price, qt.currency, fx.price) : null;
 }
 
+// Yahoo-Symbol eines Circle-Moduls (offen ODER verkauft) auflösen; verändert
+// `symbols` und `quotes`. Die Stammdaten der Module sind nicht immer sauber
+// (live: Adidas-Modul mit Allianz-ISIN) -> ISIN, WKN und Name werden ALLE
+// probiert und der Kandidat gewählt, dessen Kurs zum Titel-Tageskurs/EK passt.
+// Für verkaufte Positionen ist der Anker der EK je Aktie (Titel trägt nur Tage).
+async function resolveCircleModuleSymbol(m, ti, symbols, quotes, now) {
+  let entry = symbols[m.id];
+  const isStale =
+    !entry ||
+    entry.v !== SYMBOL_RESOLVE_VERSION ||
+    (!entry.symbol && now - (entry.failedAt || 0) > SYMBOL_RETRY_MS);
+  if (!isStale) return entry;
+
+  const anchor =
+    ti.currentPrice != null
+      ? ti.currentPrice // Tageskurs laut Titel (je Aktie, €) — als Anker ideal
+      : m.trade && m.trade.buyPriceEur != null
+        ? m.trade.buyPriceEur
+        : m.trade && m.trade.qty == null && m.trade.totalBuyEur != null
+          ? m.trade.totalBuyEur // Format ohne Stück: Kaufpreis = Titeleinheit
+          : null;
+  const queries = [];
+  if (m.trade && m.trade.isin) queries.push(m.trade.isin);
+  if (m.trade && m.trade.wkn) queries.push(m.trade.wkn);
+  if (ti.name) queries.push(ti.name);
+
+  const seen = new Set();
+  const candidates = [];
+  for (const query of queries) {
+    await sleep(QUOTE_FETCH_DELAY_MS);
+    const symbol = await resolveYahooSymbol(query);
+    if (!symbol || seen.has(symbol)) continue;
+    seen.add(symbol);
+    const qt = await cachedYahooQuote(quotes, symbol, now);
+    const priceEur = qt ? await quoteEur(quotes, qt, now) : null;
+    candidates.push({ symbol, priceEur, query });
+    if (anchor == null) break; // ohne Anker entscheidet der erste Treffer
+  }
+  const best = pickPlausibleQuote(candidates, anchor);
+  if (!best) {
+    // Sichtbar machen, WORAN es scheiterte (Worker-Konsole via
+    // chrome://extensions -> "Service Worker untersuchen").
+    console.warn('[Kurse] Kein (plausibles) Yahoo-Symbol für "' + ti.name + '"',
+      { versucht: queries, anker: anchor, kandidaten: candidates });
+  }
+  entry = best
+    ? { symbol: best.symbol, query: best.query, resolvedAt: now, v: SYMBOL_RESOLVE_VERSION }
+    : { symbol: null, failedAt: now, v: SYMBOL_RESOLVE_VERSION };
+  symbols[m.id] = entry;
+  return entry;
+}
+
+// Für die Gesamtübersicht (portfolio.html): Symbole ALLER Positionen — auch
+// der verkauften, deren Kursverlauf die Vergangenheit der Wert-Kurve liefert.
+// Ergebnis landet in `quoteSymbols`; die Seite liest es von dort.
+async function getCircleSymbols() {
+  if (globalThis.DEBUG_SIMULATE && globalThis.DEBUG_SIMULATE.circle) {
+    return { ok: false, error: 'TEST-Schalter aktiv (lib/debug.js)' };
+  }
+  const { circle } = await getState();
+  if (!circle || !circle.modules) return { ok: false, error: 'Keine Circle-Daten' };
+  const stored = await api.storage.local.get(['quoteSymbols', 'quotes']);
+  const symbols = stored.quoteSymbols || {};
+  const quotes = stored.quotes || {};
+  const now = Date.now();
+  const out = {};
+  for (const m of Object.values(circle.modules)) {
+    const ti = m.titleInfo || parseModuleTitle(m.title || '');
+    if (ti.kind === 'meta' || !m.trade) continue;
+    const entry = await resolveCircleModuleSymbol(m, ti, symbols, quotes, now);
+    out[m.id] = entry.symbol || null;
+  }
+  await api.storage.local.set({ quoteSymbols: symbols, quotes });
+  return { ok: true, symbols: out };
+}
+
 async function getCircleQuotes() {
   if (globalThis.DEBUG_SIMULATE && globalThis.DEBUG_SIMULATE.circle) {
     return { ok: false, error: 'TEST-Schalter aktiv (lib/debug.js)' };
@@ -647,53 +723,8 @@ async function getCircleQuotes() {
     const ti = m.titleInfo || parseModuleTitle(m.title || '');
     if (ti.kind === 'meta' || circleModuleClosed(m)) continue;
 
-    // 1) Symbol auflösen (einmalig; Fehlschläge erst nach 24 h erneut).
-    // Die Stammdaten der Module sind nicht immer sauber (live: Adidas-Modul
-    // mit Allianz-ISIN) -> ISIN, WKN und Name werden ALLE probiert und der
-    // Kandidat gewählt, dessen Kurs zum Titel-Tageskurs/EK der Position passt.
-    let entry = symbols[m.id];
-    const isStale =
-      !entry ||
-      entry.v !== SYMBOL_RESOLVE_VERSION ||
-      (!entry.symbol && now - (entry.failedAt || 0) > SYMBOL_RETRY_MS);
-    if (isStale) {
-      const anchor =
-        ti.currentPrice != null
-          ? ti.currentPrice // Tageskurs laut Titel (je Aktie, €) — als Anker ideal
-          : m.trade && m.trade.buyPriceEur != null
-            ? m.trade.buyPriceEur
-            : m.trade && m.trade.qty == null && m.trade.totalBuyEur != null
-              ? m.trade.totalBuyEur // Format ohne Stück: Kaufpreis = Titeleinheit
-              : null;
-      const queries = [];
-      if (m.trade && m.trade.isin) queries.push(m.trade.isin);
-      if (m.trade && m.trade.wkn) queries.push(m.trade.wkn);
-      if (ti.name) queries.push(ti.name);
-
-      const seen = new Set();
-      const candidates = [];
-      for (const query of queries) {
-        await sleep(QUOTE_FETCH_DELAY_MS);
-        const symbol = await resolveYahooSymbol(query);
-        if (!symbol || seen.has(symbol)) continue;
-        seen.add(symbol);
-        const qt = await cachedYahooQuote(quotes, symbol, now);
-        const priceEur = qt ? await quoteEur(quotes, qt, now) : null;
-        candidates.push({ symbol, priceEur, query });
-        if (anchor == null) break; // ohne Anker entscheidet der erste Treffer
-      }
-      const best = pickPlausibleQuote(candidates, anchor);
-      if (!best) {
-        // Sichtbar machen, WORAN es scheiterte (Worker-Konsole via
-        // chrome://extensions -> "Service Worker untersuchen").
-        console.warn('[Kurse] Kein (plausibles) Yahoo-Symbol für "' + ti.name + '"',
-          { versucht: queries, anker: anchor, kandidaten: candidates });
-      }
-      entry = best
-        ? { symbol: best.symbol, query: best.query, resolvedAt: now, v: SYMBOL_RESOLVE_VERSION }
-        : { symbol: null, failedAt: now, v: SYMBOL_RESOLVE_VERSION };
-      symbols[m.id] = entry;
-    }
+    // 1) Symbol auflösen (einmalig; Fehlschläge nach 2 min erneut).
+    const entry = await resolveCircleModuleSymbol(m, ti, symbols, quotes, now);
     if (!entry.symbol) continue;
 
     // 2) Kurs holen (TTL-Cache) und nach Euro umrechnen.
@@ -1438,6 +1469,23 @@ async function createChartWindow(params) {
   });
 }
 
+// Gesamtübersicht des Circle (portfolio.html) — gleiche Choreografie wie der
+// Chart: aus dem Action-Popup erst das Standalone-Fenster, dann die Seite.
+async function createPortfolioWindow() {
+  await api.windows.create({
+    url: api.runtime.getURL('portfolio.html'),
+    type: 'popup',
+    width: 860,
+    height: 620,
+  });
+}
+
+async function handleOpenPortfolio(msg) {
+  if (msg && msg.spawnCircle) await openCircleWindow(msg.pos, msg.tab);
+  else await waitPopupClosed();
+  await createPortfolioWindow();
+}
+
 async function handleOpenChart(msg) {
   if (msg.spawnCircle) {
     // Erster Chart-Klick aus dem Popup: erst das Circle-Fenster als "Ersatz"
@@ -1454,6 +1502,7 @@ api.runtime.onConnect.addListener((port) => {
   popupPort = port;
   port.onMessage.addListener((msg) => {
     if (msg && msg.type === 'openChart') handleOpenChart(msg);
+    else if (msg && msg.type === 'openPortfolio') handleOpenPortfolio(msg);
     else if (msg && msg.type === 'openCircleWindow') openCircleWindow(msg.pos, msg.tab);
   });
   port.onDisconnect.addListener(() => {
@@ -1498,6 +1547,15 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
       case 'circleQuotes': {
         sendResponse(await getCircleQuotes());
+        break;
+      }
+      case 'circleSymbols': {
+        sendResponse(await getCircleSymbols());
+        break;
+      }
+      case 'openPortfolio': {
+        await handleOpenPortfolio(msg); // Direktweg des Standalone-Fensters
+        sendResponse({ ok: true });
         break;
       }
       case 'ampelQuotes': {

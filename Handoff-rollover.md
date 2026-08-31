@@ -13,6 +13,11 @@ Erst-Auflösung mit Parallelität 3, Kurs-Auffrischung gebündelt über Yahoo
 `nameSearchQueries`): Live-Fehler „Bayer → BMW.DE" behoben, alle 54 Baseline-Namen
 lösen auf. Details in CLAUDE.md (Phase 3b) und `extension/changelog.md`.
 
+v0.8.0 (gleicher Tag): Circle-Gesamtübersicht `portfolio.html` (📈 Verlauf in der Auswertung;
+CLAUDE.md Phase 3c; `lib/portfolio.js` + `test/portfolio.test.mjs`). Peters Frage zu Einzahlungen:
+nur Untergrenze ableitbar (Kapitalbedarf-Kurve) — so umgesetzt, plus 1.500 €×10-Vergleichslinie
+und Kostenkurve (Quote aus realisiert brutto − Zuwachs). Ebenfalls noch nicht live geklickt.
+
 **Noch nicht im echten Browser verifiziert (wie unten für v0.7.0):** Kurs-Zellen/Knöpfe im
 Popup, Gruppen-Laden mit ~25 Aktien (Dauer beim ersten Mal), ↗ aus dem Ampel-Tab,
 Chart-Klick aus dem Ampel-Tab (Standalone in der Ampel + Chart obendrauf), Standalone-

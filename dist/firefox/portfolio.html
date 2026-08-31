@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <title>Circle – Gesamtübersicht</title>
+  <link rel="stylesheet" href="chart.css" />
+</head>
+<body>
+  <header>
+    <div class="head-left">
+      <h1 id="chartName">Circle – Gesamtübersicht</h1>
+      <div id="chartMeta" class="meta"></div>
+    </div>
+    <div class="head-right">
+      <div class="ranges" id="ranges">
+        <button type="button" data-range="gesamt">Gesamt</button>
+        <button type="button" data-range="12h">12h</button>
+        <button type="button" data-range="tage">Tage</button>
+        <button type="button" data-range="wochen">Wochen</button>
+        <button type="button" data-range="1mo">1M</button>
+        <button type="button" data-range="3mo">3M</button>
+        <button type="button" data-range="1y">1J</button>
+      </div>
+    </div>
+  </header>
+  <div class="canvas-wrap"><canvas id="chart"></canvas></div>
+  <!-- Brush: Mini-Übersicht (Portfolio-Wert) mit frei ziehbarem Auswahlbereich. -->
+  <div id="brush" class="brush" title="Bereich wählen: Griffe ziehen, Auswahl verschieben">
+    <canvas id="brushCanvas"></canvas>
+    <div id="brushSel" class="brush-sel">
+      <div class="brush-handle left"></div>
+      <div class="brush-handle right"></div>
+    </div>
+  </div>
+  <!-- Legende = Schalter: Kurven ein-/ausblenden, die y-Achse folgt den sichtbaren. -->
+  <footer id="chartLegend" class="legend"></footer>
+  <script src="lib/circle.js"></script>
+  <script src="lib/quotes.js"></script>
+  <script src="lib/portfolio.js"></script>
+  <script src="portfolio.js"></script>
+</body>
+</html>
