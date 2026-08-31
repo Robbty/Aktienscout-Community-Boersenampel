@@ -1,8 +1,10 @@
 /*
- * chart.js — Kurs-Chart-Fenster (geöffnet vom Circle-Tab, 📈-Knopf).
+ * chart.js — Kurs-Chart-Fenster (📈-Knopf im Circle-Tab und seit v0.7.1 auch
+ * je Ampel-Aktie).
  *
  * URL-Parameter: symbol (Yahoo), name, buy (EK je Aktie in €), target
- * (Kursziel in €), buyTs (Kaufzeitpunkt in ms). Zeichnet mit reinem Canvas —
+ * (Kursziel in €), buyTs (Kaufzeitpunkt in ms) — die letzten drei sind
+ * optional (Ampel-Charts kommen ohne Referenzlinien, Startansicht "Tage"). Zeichnet mit reinem Canvas —
  * die Extension-CSP erlaubt keine fremden Chart-Bibliotheken.
  *
  * Aufbau: Hauptchart + darunter ein "Brush" (Mini-Übersicht über ~1 Jahr

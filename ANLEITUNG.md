@@ -27,7 +27,8 @@ Kein ständiges Nachschauen mehr. Das Symbol passt auf.
 
 - 🟢🟡🔴 Zeigt alle Aktien nach Ampel sortiert.
 - 🔎 Tippe einen Namen – und du bist sofort da.
-- 📄 **Neu:** Klick auf eine Aktie – und du liest die **ganze Analyse direkt im Fenster**. Ohne Skool zu öffnen.
+- 📄 Klick auf eine Aktie – und du liest die **ganze Analyse direkt im Fenster**. Ohne Skool zu öffnen.
+- 📈 **Neu:** „Kurse laden" zeigt zu jeder Aktie den **aktuellen Kurs** und die Veränderung zum Vortag – und der 📈-Knopf öffnet den **Chart**. Mehr dazu unten.
 - 🆕 „Seit deinem letzten Besuch": Was ist neu? Was hat gewechselt?
 - 🕒 „Statuswechsel der letzten X Tage": deine eigene kleine Chronik. *X* stellst du selbst ein.
 - 🔔 Es blinkt und meldet sich, wenn etwas passiert.
@@ -93,6 +94,32 @@ Das Ampel-Symbol ist jetzt oben rechts. Tipp: Auf das Puzzleteil 🧩 klicken un
 
 ---
 
+## Kurse und Charts in der Ampel 📈
+
+Neben jeder Ampel-Gruppe (grün, gelb, rot) steht ein kleiner Knopf **„Kurse laden"**.
+Ein Klick holt für alle Aktien der Gruppe den **aktuellen Börsenkurs** in Euro – und darunter
+in klein, um wie viel Prozent die Aktie **gegenüber dem Vortag** gestiegen (grün) oder
+gefallen (rot) ist. Die Zeilen füllen sich nach und nach; das dauert beim allerersten Mal
+ein paar Sekunden, danach geht es schnell.
+
+Warum nicht automatisch? Die Ampel führt über 50 Aktien – die Kurse würden jedes Öffnen
+bremsen. Darum lädst du sie nur, wenn du sie sehen willst. Einmal geladene Kurse bleiben
+stehen; sind sie älter als fünf Minuten, erscheinen sie etwas blasser – „Kurse laden"
+frischt sie auf.
+
+Ganz rechts in jeder Zeile: der **📈-Knopf**. Er öffnet den **Chart** der Aktie (wie im
+Circle, nur ohne Einkaufs- und Kursziel-Linie). Falls die Ampel das Börsensymbol noch nicht
+kennt, ermittelt sie es beim Klick – nur für diese eine Aktie.
+
+> Steht statt eines Kurses ein „–", hat Yahoo Finance zu diesem Namen nichts Passendes
+> gefunden. Fährst du mit der Maus über einen Kurs, siehst du, welches Börsenkürzel
+> gewählt wurde – so fällt eine falsche Zuordnung auf.
+
+Auch der Knopf **„In eigenem Fenster öffnen ↗"** gibt es jetzt oben im Ampel-Tab: Die Ampel
+wird zum eigenen Fenster, das offen bleibt, bis du es schließt.
+
+---
+
 ## Der Circle-Tab 💼
 
 Oben im Fenster gibt es zwei Reiter: **Ampel** und **Circle**.
@@ -129,7 +156,8 @@ Das Fenster bleibt offen, bis du es selbst schließt – praktisch zum Danebenle
 **Und noch ein Trick:** Beim ersten Chart-Klick verwandelt sich die Circle-Ansicht selbst
 in ein **eigenes Fenster** (gleicher Inhalt, gleiche Stelle). Auch das bleibt offen, bis du es
 schließt – und aus ihm heraus kannst du bequem beliebig viele Charts öffnen und schließen.
-Du bekommst es auch direkt über den kleinen Knopf **„In eigenem Fenster öffnen ↗"** oben im Circle-Tab.
+Du bekommst es auch direkt über den kleinen Knopf **„In eigenem Fenster öffnen ↗"** oben im Circle-Tab
+(und genauso im Ampel-Tab – dann startet das Fenster in der Ampel).
 
 > Die Kurse kommen kostenlos von Yahoo Finance. Wenn dort mal nichts kommt,
 > steht in der Spalte einfach „–" – alles andere funktioniert normal weiter.

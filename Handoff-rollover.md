@@ -1,3 +1,26 @@
+# Rollover — Stand 31.08.2026 (v0.7.1) / 24.08.2026 (v0.7.0)
+
+## Nachtrag 31.08.2026 — v0.7.1 gepusht
+
+Auf Peters Wunsch: (1) „In eigenem Fenster öffnen ↗" auch im Ampel-Tab (Standalone
+startet per `?tab=ampel` in der Ampel; offenes Fenster wird per `standaloneShowTab`
+umgeschaltet), (2) je Ampel-Aktie Kurs in € + %-Veränderung zum Vortagesschluss +
+📈-Chart-Knopf, (3) NIE automatisch laden — nur „Kurse laden" je Gruppe bzw. 📈 je Aktie;
+Optimierung: Symbol-Cache dauerhaft (`quoteSymbols['ampel:'+id]`, `nv`-Version),
+Erst-Auflösung mit Parallelität 3, Kurs-Auffrischung gebündelt über Yahoo
+`v8/finance/spark` (20 Symbole je Request, keyless, ohne Währung), progressive Anzeige
+über `ampelQuotesLive`. Namensauflösung neu (`pickYahooSymbolForName`,
+`nameSearchQueries`): Live-Fehler „Bayer → BMW.DE" behoben, alle 54 Baseline-Namen
+lösen auf. Details in CLAUDE.md (Phase 3b) und `extension/changelog.md`.
+
+**Noch nicht im echten Browser verifiziert (wie unten für v0.7.0):** Kurs-Zellen/Knöpfe im
+Popup, Gruppen-Laden mit ~25 Aktien (Dauer beim ersten Mal), ↗ aus dem Ampel-Tab,
+Chart-Klick aus dem Ampel-Tab (Standalone in der Ampel + Chart obendrauf), Standalone-
+Fenster-Umschaltung bei bereits offenem Fenster, App-Build (`app/www` gebaut, kein APK).
+App-Release `app-v0.7.1` erst nach Gerätetest (Changelog-Eintrag `## App 0.7.1 – Datum`).
+
+---
+
 # Rollover — Stand 24.08.2026 abends, Wiedereinstieg am nächsten Tag
 
 **Vor dem Start lesen:** `CLAUDE.md` (Abschnitt „Event-log interface (v0.7.0, tag events-v1)"),

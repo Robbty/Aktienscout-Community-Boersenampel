@@ -22,6 +22,13 @@
 
   <div id="tab-ampel">
 
+  <!-- Nur im Action-Popup sichtbar: öffnet die Ampel-Ansicht als eigenständiges
+       Fenster (gleicher Standalone-Modus wie beim Circle, startet im Ampel-Tab). -->
+  <div class="circle-window-hint">
+    <button id="ampelWindowBtn" class="link-btn" type="button"
+      title="Diese Ansicht als eigenes Fenster öffnen – bleibt offen, bis du es schließt">In eigenem Fenster öffnen ↗</button>
+  </div>
+
   <!-- Phase 2: Detailansicht einer Aktie (Analyse-Text aus dem Skool-Modul).
        Solange offen, blendet .detail-open alle anderen Ampel-Abschnitte aus. -->
   <section id="stockDetail" class="detail" hidden>

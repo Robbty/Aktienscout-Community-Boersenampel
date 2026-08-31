@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Börsenampel Watcher",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Überwacht die Börsenampel der Aktienscout-Community auf Skool und wertet die Circle-Aktienengagements aus (investiert, realisiert, unrealisiert).",
   "browser_specific_settings": {
     "gecko": {

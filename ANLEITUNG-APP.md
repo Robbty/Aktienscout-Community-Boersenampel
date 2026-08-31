@@ -87,6 +87,8 @@ Das war's mit der Einrichtung. Die Anmeldung bleibt dauerhaft gespeichert.
 
 - **Ampel-Tab:** alle Aktien nach grün/gelb/rot, antippen zeigt die komplette
   Analyse. Oben siehst du, was sich **seit deinem letzten Besuch** getan hat.
+  **„Kurse laden"** neben einer Gruppe holt die aktuellen Kurse (mit Veränderung
+  zum Vortag), der 📈-Knopf je Aktie öffnet den Chart (ab App-Version 0.7.1).
 - **Circle-Tab:** die Auswertung der Engagements – Summen, laufende und
   abgeschlossene Positionen mit echten Kursen. Mit dem **Suchfeld** findest du
   jede Position sofort, und ein Tipp auf eine **Spaltenüberschrift** sortiert

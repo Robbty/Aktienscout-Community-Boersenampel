@@ -23,6 +23,8 @@ const api = globalThis.browser || globalThis.chrome;
 // Standalone-Modus: dieselbe Seite läuft als eigenständiges Circle-Fenster
 // (popup.html?standalone=1) — bleibt offen, bis der Nutzer sie schließt.
 const STANDALONE = new URLSearchParams(location.search).get('standalone') === '1';
+// Start-Tab des Standalone-Fensters: Circle (klassisch) oder Ampel (↗ im Ampel-Tab).
+const STANDALONE_TAB = new URLSearchParams(location.search).get('tab') === 'ampel' ? 'ampel' : 'circle';
 if (STANDALONE) document.body.classList.add('standalone');
 
 // Nur das echte Action-Popup hält einen Port zum Worker. Fenster-Wünsche gehen
@@ -181,6 +183,20 @@ function renderGroups() {
       collapsed[color] = !collapsed[color];
       group.classList.toggle('collapsed');
     });
+    // "Kurse laden" holt die Kurse aller (ggf. gefilterten) Aktien der Gruppe —
+    // bewusst nur auf Klick, die Ampel führt 50+ Aktien.
+    const groupLoading = items.some((s) => ampelQuotesLoading.has(s.id));
+    const qBtn = document.createElement('button');
+    qBtn.type = 'button';
+    qBtn.className = 'link-btn quotes-btn';
+    qBtn.textContent = groupLoading ? 'Kurse laden…' : 'Kurse laden';
+    qBtn.disabled = groupLoading;
+    qBtn.title = 'Aktuelle Kurse (Yahoo Finance) für alle Aktien dieser Gruppe holen';
+    qBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      loadAmpelQuotes(items.map((s) => s.id));
+    });
+    head.insertBefore(qBtn, head.querySelector('.group-count'));
 
     const ul = document.createElement('ul');
     ul.className = 'stock-list';
@@ -197,6 +213,7 @@ function renderGroups() {
         cd.title = 'geändert';
         li.appendChild(cd);
       }
+      li.append(ampelQuoteCell(s), ampelChartButton(s));
       li.title = 'In Skool öffnen';
       li.addEventListener('click', () => openStock(s.id));
       ul.appendChild(li);
@@ -375,6 +392,120 @@ async function openStock(id) {
 
 document.getElementById('detailBack').addEventListener('click', closeStockDetail);
 
+// --- Ampel-Kurse (v0.7.1) ---------------------------------------------------
+// Kurs + Veränderung zum Vortag je Aktie und 📈-Knopf wie im Circle — aber
+// NICHTS wird automatisch geholt: beim Öffnen kommt nur, was der Worker schon
+// im Cache hat (`cachedOnly`), alles Weitere erst auf "Kurse laden" (Gruppe)
+// bzw. 📈 (einzelne Aktie). Der Worker meldet Zwischenstände über
+// storage `ampelQuotesLive`, sodass die Zeilen einzeln auffüllen.
+let ampelQuotes = {};                 // stockId -> {symbol, priceEur, changePct, stale, …} | {symbol:null}
+const ampelQuotesLoading = new Set(); // IDs, für die gerade ein Abruf läuft
+let ampelQuotesCachedLoaded = false;
+
+async function loadAmpelQuotesCached() {
+  if (ampelQuotesCachedLoaded) return;
+  ampelQuotesCachedLoaded = true;
+  const r = await send({ type: 'ampelQuotes', cachedOnly: true });
+  if (r && r.ok && r.quotes) {
+    ampelQuotes = { ...r.quotes, ...ampelQuotes };
+    if (isLoggedIn()) renderGroups();
+  }
+}
+
+async function loadAmpelQuotes(ids) {
+  const fresh = ids.filter((id) => !ampelQuotesLoading.has(id));
+  if (!fresh.length) return;
+  for (const id of fresh) ampelQuotesLoading.add(id);
+  renderGroups();
+  const r = await send({ type: 'ampelQuotes', ids: fresh });
+  for (const id of fresh) ampelQuotesLoading.delete(id);
+  if (r && r.ok && r.quotes) ampelQuotes = { ...ampelQuotes, ...r.quotes };
+  if (isLoggedIn()) renderGroups();
+}
+
+function ampelQuoteCell(s) {
+  const cell = document.createElement('span');
+  cell.className = 'stock-quote';
+  const q = ampelQuotes[s.id];
+  if (ampelQuotesLoading.has(s.id) && !(q && q.priceEur != null)) {
+    cell.textContent = '…';
+    cell.classList.add('muted');
+    return cell;
+  }
+  if (!q) return cell; // noch nichts geladen -> leer (Knopf "Kurse laden")
+  if (!q.symbol || q.priceEur == null) {
+    cell.textContent = '–';
+    cell.classList.add('muted');
+    cell.title = !q.symbol
+      ? 'Kein Yahoo-Symbol zu diesem Namen gefunden – wird beim nächsten Laden erneut versucht.'
+      : q.symbol + ': Kurs nicht in Euro umrechenbar (Wechselkurs fehlt).';
+    return cell;
+  }
+  cell.textContent = fmtEur(q.priceEur);
+  if (q.stale) cell.classList.add('stale');
+  cell.title =
+    q.symbol +
+    (q.currency && q.currency !== 'EUR' ? ' · ' + q.price.toLocaleString('de-DE') + ' ' + q.currency : '') +
+    ' · Stand ' + fmtTime(q.at) +
+    (q.stale ? ' (älter als 5 Min. – „Kurse laden" aktualisiert)' : '') +
+    ' · darunter: Veränderung zum Vortagesschluss';
+  if (q.changePct != null) {
+    const cls = signClass(q.changePct);
+    if (cls) cell.classList.add(cls);
+    appendPct(cell, q.changePct);
+  }
+  return cell;
+}
+
+function ampelChartButton(s) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'chart-btn';
+  btn.textContent = '📈';
+  const q = ampelQuotes[s.id];
+  btn.title = q && q.symbol
+    ? 'Kurs-Chart öffnen (' + q.symbol + ')'
+    : 'Kurs-Chart öffnen (Symbol wird beim Klick ermittelt)';
+  btn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    let quote = ampelQuotes[s.id];
+    if (!quote || !quote.symbol) {
+      // Symbol noch unbekannt -> jetzt (nur für diese Aktie) auflösen.
+      btn.disabled = true;
+      btn.textContent = '…';
+      await loadAmpelQuotes([s.id]);
+      quote = ampelQuotes[s.id];
+      if (!quote || !quote.symbol) {
+        btn.textContent = '📈';
+        btn.disabled = false;
+        btn.title = 'Kein Yahoo-Symbol zu diesem Namen gefunden';
+        return;
+      }
+    }
+    openAmpelChart(s, quote);
+  });
+  return btn;
+}
+
+// Chart ohne EK/Kursziel-Linien (die Ampel kennt keine eigenen Käufe). Aus dem
+// Action-Popup heraus: erst das eigenständige Fenster im Ampel-Tab, dann der
+// Chart obendrauf — dieselbe Choreografie wie beim Circle (siehe openChartWindow).
+function openAmpelChart(s, q) {
+  const chartParams = { symbol: q.symbol, name: s.name };
+  if (STANDALONE || !popupPort) {
+    send({ type: 'openChart', params: chartParams });
+    return;
+  }
+  popupPort.postMessage({
+    type: 'openChart',
+    params: chartParams,
+    spawnCircle: true,
+    tab: 'ampel',
+    pos: { left: window.screenX, top: window.screenY },
+  });
+  window.close();
+}
+
 // Ampel-Daten nur zeigen, wenn der letzte Abruf erfolgreich war (= eingeloggt).
 // So sind nach dem Ausloggen keine zwischengespeicherten Daten mehr sichtbar.
 function isLoggedIn() {
@@ -404,6 +535,7 @@ function renderAll() {
     renderHistory();
     renderActivity();
     renderGroups();
+    loadAmpelQuotesCached(); // nur Cache, kein Netz — füllt bekannte Kurse nach
   }
   const iv = document.getElementById('interval');
   if (state.settings && document.activeElement !== iv) iv.value = state.settings.intervalMinutes;
@@ -1126,7 +1258,7 @@ async function init() {
     // Letzter Abruf war gerade eben erfolgreich -> sofort anzeigen, im
     // Hintergrund trotzdem nachprüfen (aktualisiert die Anzeige still).
     renderAll();
-    if (STANDALONE) switchTab('circle');
+    if (STANDALONE) switchTab(STANDALONE_TAB);
     send({ type: 'pollNow' }).then((r) => {
       if (r) { state = r; renderAll(); }
     });
@@ -1140,7 +1272,7 @@ async function init() {
   if (r) state = r;
   renderAll();
   // Das Standalone-Fenster ist die "Circle-Kopie" -> direkt dorthin.
-  if (STANDALONE) switchTab('circle');
+  if (STANDALONE) switchTab(STANDALONE_TAB);
 }
 
 // Auf Speicheränderungen reagieren:
@@ -1155,6 +1287,19 @@ api.storage.onChanged.addListener(async (changes, area) => {
   if ('quotesLive' in changes) {
     circleQuotes = { ...(changes.quotesLive.newValue || {}) };
     if (activeTab === 'circle') renderCircleOpenTable(lastOpenRows);
+  }
+  if ('ampelQuotesLive' in changes) {
+    // Zwischenstand eines laufenden Ampel-Abrufs: nur ergänzen, nie ersetzen
+    // (ein Lauf betrifft immer nur eine Gruppe bzw. eine Aktie).
+    ampelQuotes = { ...ampelQuotes, ...(changes.ampelQuotesLive.newValue || {}) };
+    if (activeTab === 'ampel' && isLoggedIn()) renderGroups();
+  }
+  if (STANDALONE && ('current' in changes || 'meta' in changes || 'baseline' in changes || 'history' in changes)) {
+    // Das langlebige Fenster zieht auch Ampel-Abrufe des Workers nach.
+    const s = await send({ type: 'getState' });
+    if (!s) return;
+    state = { ...state, ...s };
+    if (activeTab === 'ampel') renderAll();
   }
   if (STANDALONE && ('circle' in changes || 'circleMeta' in changes || 'circleHistory' in changes)) {
     const s = await send({ type: 'getState' });
@@ -1196,15 +1341,29 @@ for (const [table, secId] of [['closed', 'circleClosed'], ['open', 'circleOpen']
   }
 }
 
-// ↗-Schalter (nur im Action-Popup sichtbar): Circle als eigenes Fenster öffnen.
-document.getElementById('circleWindowBtn').addEventListener('click', () => {
+// ↗-Schalter (nur im Action-Popup sichtbar): Ansicht als eigenes Fenster öffnen —
+// aus dem Circle-Tab startet es im Circle, aus dem Ampel-Tab in der Ampel.
+function openStandaloneWindow(tab) {
   if (!popupPort) return;
   popupPort.postMessage({
     type: 'openCircleWindow',
+    tab,
     pos: { left: window.screenX, top: window.screenY },
   });
   window.close();
-});
+}
+document.getElementById('circleWindowBtn').addEventListener('click', () => openStandaloneWindow('circle'));
+document.getElementById('ampelWindowBtn').addEventListener('click', () => openStandaloneWindow('ampel'));
+
+// Gibt es das Fenster schon, fokussiert der Worker es nur und bittet per
+// Nachricht um den gewünschten Tab.
+if (STANDALONE && api.runtime.onMessage) {
+  api.runtime.onMessage.addListener((msg) => {
+    if (msg && msg.type === 'standaloneShowTab' && (msg.tab === 'ampel' || msg.tab === 'circle')) {
+      switchTab(msg.tab);
+    }
+  });
+}
 
 function currentMatches() {
   const filter = document.getElementById('search').value.trim().toLowerCase();

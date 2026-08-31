@@ -126,6 +126,13 @@ body.searching #activity { display: none; }
 .stock-list li.changed:hover { background: #fdeec2; }
 .stock-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .changed-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--yellow); flex: none; }
+/* Ampel-Kurse (auf Klick geladen): Kurs in €, darunter die Veränderung zum
+   Vortag; rechts der 📈-Knopf wie in der Circle-Tabelle. */
+.group-head .quotes-btn { font-size: 11px; padding: 0 4px; margin-left: 4px; }
+.stock-quote { flex: none; min-width: 78px; text-align: right; font-size: 12px; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.stock-quote.stale { opacity: .55; }
+.stock-quote.muted { color: var(--muted); }
+.stock-list .chart-btn { flex: none; }
 
 /* Footer */
 footer { border-top: 1px solid var(--line); padding: 8px 12px; display: flex; flex-direction: column; gap: 8px; flex: none; }

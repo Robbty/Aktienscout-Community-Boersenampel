@@ -717,6 +717,203 @@ async function getCircleQuotes() {
 }
 
 
+// --- Ampel-Kurse (v0.7.1) -------------------------------------------------------
+// Nur auf Klick im Popup ("Kurse laden" je Ampel-Gruppe bzw. 📈 je Aktie) — NIE
+// automatisch, denn die Ampel führt 50+ Aktien. Drei Schichten, damit der
+// Nutzer möglichst kurz wartet:
+//  1) Symbol-Cache `quoteSymbols['ampel:'+id]` (dauerhaft; derselbe Eintrag,
+//     den auch der Event-Log-Sync per Namenssuche füllt) — die Namenssuche ist
+//     der teure Teil und fällt so nur EINMAL je Aktie an;
+//  2) Kurs-Cache `quotes` (5 min, je Symbol, geteilt mit dem Circle);
+//  3) Sammelabruf (Yahoo "spark"): alle abgelaufenen Kurse von Symbolen mit
+//     bekannter Währung in EINEM Request statt 20–30 einzelnen.
+// Erst-Auflösungen laufen mit begrenzter Parallelität; jedes Ergebnis geht
+// sofort per `ampelQuotesLive` ans Popup (progressive Anzeige wie beim Circle).
+// Ampel-Module tragen keine ISIN/WKN -> Namenssuche ohne Plausibilitäts-Anker;
+// das getroffene Symbol steht im Tooltip, damit ein Fehlgriff auffällt.
+const AMPEL_RESOLVE_CONCURRENCY = 3;
+// Version der NAMENS-Auflösung (Ampel-Einträge tragen `nv`); hochzählen, wenn
+// sich pickYahooSymbolForName/nameSearchQueries ändern -> Einträge werden neu
+// aufgelöst, ohne die (per Anker geprüften) Circle-Symbole anzufassen.
+const AMPEL_NAME_RESOLVE_VERSION = 1;
+
+function ampelSymbolStale(entry, now) {
+  return !entry || entry.v !== SYMBOL_RESOLVE_VERSION || entry.nv !== AMPEL_NAME_RESOLVE_VERSION ||
+    (!entry.symbol && now - (entry.failedAt || 0) > SYMBOL_RETRY_MS);
+}
+
+function ampelSymbolEntry(symbol, name, now) {
+  return symbol
+    ? { symbol, query: name, resolvedAt: now, v: SYMBOL_RESOLVE_VERSION, nv: AMPEL_NAME_RESOLVE_VERSION, via: 'name-search' }
+    : { symbol: null, failedAt: now, v: SYMBOL_RESOLVE_VERSION, nv: AMPEL_NAME_RESOLVE_VERSION };
+}
+
+// Yahoo-Symbol zu einem Ampel-Namen: mehrere Suchvarianten, Treffer müssen zum
+// Namen passen (lib/quotes.js). null, wenn nichts Passendes gefunden wird.
+async function resolveAmpelSymbol(name) {
+  for (const query of nameSearchQueries(name)) {
+    let found = await fetchYahooSearch(query);
+    if (found === undefined) {
+      await sleep(800); // Netz-/Drosselfehler -> einmal in Ruhe nachfassen
+      found = await fetchYahooSearch(query);
+    }
+    const symbol = found ? pickYahooSymbolForName(found, name) : null;
+    if (symbol) return symbol;
+    await sleep(QUOTE_FETCH_DELAY_MS);
+  }
+  return null;
+}
+const SPARK_BATCH = 20;
+let ampelQuotesChain = Promise.resolve(); // Läufe seriell (gemeinsamer Kurs-Cache)
+
+// Anzeigeform eines Kurses fürs Popup; null, wenn (noch) kein Kurs vorliegt.
+function ampelQuoteView(entry, qt, quotes, now) {
+  if (!entry || !entry.symbol || !qt || typeof qt.price !== 'number') return null;
+  const norm = normalizeQuoteCurrency(qt.currency);
+  let priceEur = null;
+  if (norm.currency === 'EUR' || norm.currency === null) {
+    priceEur = convertToEur(qt.price, qt.currency, null);
+  } else {
+    const fx = quotes[fxPairSymbol(norm.currency)];
+    priceEur = fx ? convertToEur(qt.price, qt.currency, fx.price) : null;
+  }
+  return {
+    symbol: entry.symbol,
+    price: qt.price,
+    currency: qt.currency || null,
+    priceEur: priceEur != null ? Math.round(priceEur * 100) / 100 : null,
+    changePct: dailyChangePct(qt.price, qt.previousClose),
+    at: qt.at,
+    stale: now - (qt.at || 0) > QUOTE_TTL_MS,
+  };
+}
+
+// Nur aus dem Cache (kein Netz) — beim Popup-Öffnen: was schon bekannt ist,
+// erscheint sofort (ältere Kurse als "stale" markiert), der Rest bleibt leer,
+// bis der Nutzer lädt.
+async function getAmpelQuotesCached() {
+  const { current } = await getState();
+  const stocks = (current && current.stocks) || {};
+  const stored = await api.storage.local.get(['quoteSymbols', 'quotes']);
+  const symbols = stored.quoteSymbols || {};
+  const quotes = stored.quotes || {};
+  const now = Date.now();
+  const out = {};
+  for (const id of Object.keys(stocks)) {
+    const entry = symbols['ampel:' + id];
+    if (!entry || entry.v !== SYMBOL_RESOLVE_VERSION || entry.nv !== AMPEL_NAME_RESOLVE_VERSION) continue;
+    if (!entry.symbol) { out[id] = { symbol: null }; continue; }
+    const v = ampelQuoteView(entry, quotes[entry.symbol], quotes, now);
+    if (v) out[id] = v;
+  }
+  return { ok: true, quotes: out };
+}
+
+// Aufgaben mit höchstens `limit` gleichzeitig abarbeiten (Reihenfolge egal).
+async function runLimited(tasks, limit) {
+  let next = 0;
+  const worker = async () => {
+    while (next < tasks.length) {
+      const task = tasks[next++];
+      try { await task(); } catch (e) { console.warn('[Kurse] Ampel-Teilabruf gescheitert', e); }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, tasks.length) }, worker));
+}
+
+// Öffentlicher Einstieg: Läufe hintereinander (zwei Gruppen kurz nacheinander
+// geklickt -> der zweite wartet, statt den Kurs-Cache des ersten zu überschreiben).
+function getAmpelQuotes(ids) {
+  const run = ampelQuotesChain.then(() => doGetAmpelQuotes(ids), () => doGetAmpelQuotes(ids));
+  ampelQuotesChain = run.catch(() => {});
+  return run;
+}
+
+async function doGetAmpelQuotes(ids) {
+  if (globalThis.DEBUG_SIMULATE && globalThis.DEBUG_SIMULATE.ampel) {
+    return { ok: false, error: 'TEST-Schalter aktiv (lib/debug.js)' };
+  }
+  const { current } = await getState();
+  const stocks = (current && current.stocks) || {};
+  const wanted = (Array.isArray(ids) ? ids : [])
+    .filter((id) => stocks[id] && !hiddenPlaceholderTitle(stocks[id].name));
+  if (!wanted.length) return { ok: true, quotes: {} };
+
+  const stored = await api.storage.local.get(['quoteSymbols', 'quotes']);
+  const symbols = stored.quoteSymbols || {};
+  const quotes = stored.quotes || {};
+  const now = Date.now();
+  const out = {};
+  const isFresh = (q) => q && now - (q.at || 0) <= QUOTE_TTL_MS;
+  const keyOf = (id) => 'ampel:' + id;
+  const fill = (id) => {
+    const e = symbols[keyOf(id)];
+    const v = e && e.symbol ? ampelQuoteView(e, quotes[e.symbol], quotes, now) : null;
+    if (v) out[id] = v;
+    else if (e && !ampelSymbolStale(e, now)) out[id] = { symbol: null };
+  };
+  const publish = () => api.storage.local.set({ ampelQuotesLive: out });
+
+  // 0) Was der Cache hergibt, sofort zeigen (ggf. als veraltet markiert).
+  for (const id of wanted) fill(id);
+  await publish();
+
+  // 1) Fehlende Symbole auflösen — parallel, aber gedrosselt. Der erste
+  //    Einzelabruf je Symbol liefert nebenbei die Währung (spark kennt keine).
+  const toResolve = wanted.filter((id) => ampelSymbolStale(symbols[keyOf(id)], now));
+  await runLimited(toResolve.map((id) => async () => {
+    const name = stocks[id].name;
+    const symbol = await resolveAmpelSymbol(name);
+    symbols[keyOf(id)] = ampelSymbolEntry(symbol, name, now);
+    if (!symbol) console.warn('[Kurse] Kein Yahoo-Symbol für Ampel-Aktie "' + name + '"');
+    if (symbol) {
+      const qt = await cachedYahooQuote(quotes, symbol, now);
+      if (qt) await quoteEur(quotes, qt, now); // FX-Kurs mit in den Cache
+    }
+    fill(id);
+    await publish();
+  }), AMPEL_RESOLVE_CONCURRENCY);
+
+  // 2) Abgelaufene Kurse auffrischen: Symbole mit bekannter Währung gebündelt,
+  //    der Rest einzeln (der Einzelabruf liefert die Währung dann nach).
+  const sparkSyms = [];
+  const single = [];
+  for (const id of wanted) {
+    const e = symbols[keyOf(id)];
+    if (!e || !e.symbol) continue;
+    const qt = quotes[e.symbol];
+    if (isFresh(qt)) continue;
+    const list = qt && qt.currency ? sparkSyms : single;
+    if (!list.includes(e.symbol)) list.push(e.symbol);
+  }
+  for (let i = 0; i < sparkSyms.length; i += SPARK_BATCH) {
+    const batch = sparkSyms.slice(i, i + SPARK_BATCH);
+    const got = await fetchYahooSpark(batch);
+    if (got === null) { single.push(...batch); continue; } // Sammelabruf gescheitert
+    for (const sym of batch) {
+      const g = got[sym];
+      if (!g) { single.push(sym); continue; }
+      quotes[sym] = { ...quotes[sym], price: g.price, previousClose: g.previousClose, at: now };
+    }
+  }
+  for (const sym of single) await cachedYahooQuote(quotes, sym, now);
+
+  // 3) Wechselkurse der beteiligten Fremdwährungen (wenige) auffrischen.
+  const currencies = new Set();
+  for (const id of wanted) {
+    const e = symbols[keyOf(id)];
+    const qt = e && e.symbol ? quotes[e.symbol] : null;
+    const norm = qt ? normalizeQuoteCurrency(qt.currency) : null;
+    if (norm && norm.currency && norm.currency !== 'EUR') currencies.add(norm.currency);
+  }
+  for (const cur of currencies) await cachedYahooQuote(quotes, fxPairSymbol(cur), now);
+
+  for (const id of wanted) fill(id);
+  await api.storage.local.set({ ampelQuotesLive: out, quoteSymbols: symbols, quotes });
+  return { ok: true, quotes: out };
+}
+
+
 // --- Event-Log-Sync (EVENTS.md) ------------------------------------------------
 // Die Börsenampel schreibt Ereignisse (append-only) in einen Nutzer-eigenen
 // Sync-Ordner. Ablauf: Poll erkennt Delta -> emitEvents() hängt an syncOutbox
@@ -853,16 +1050,11 @@ async function resolveAmpelSymbolsSlowly() {
     if (done >= SYNC_AMPEL_SYMBOLS_PER_POLL) break;
     if (hiddenPlaceholderTitle(st.name)) continue;
     const key = 'ampel:' + st.id;
-    const entry = symbols[key];
-    const stale = !entry || entry.v !== SYMBOL_RESOLVE_VERSION ||
-      (!entry.symbol && now - (entry.failedAt || 0) > SYMBOL_RETRY_MS);
-    if (!stale) continue;
+    if (!ampelSymbolStale(symbols[key], now)) continue;
     done++;
     await sleep(QUOTE_FETCH_DELAY_MS);
-    const symbol = await resolveYahooSymbol(st.name);
-    symbols[key] = symbol
-      ? { symbol, query: st.name, resolvedAt: now, v: SYMBOL_RESOLVE_VERSION, via: 'name-search' }
-      : { symbol: null, failedAt: now, v: SYMBOL_RESOLVE_VERSION };
+    const symbol = await resolveAmpelSymbol(st.name); // gleiche Auflösung wie die Ampel-Kurse
+    symbols[key] = ampelSymbolEntry(symbol, st.name, now);
     if (symbol) await cachedYahooQuote(quotes, symbol, now);
     changed = true;
   }
@@ -1200,17 +1392,23 @@ api.windows.onRemoved.addListener(async (id) => {
   if (id === await getCircleWindowId()) await setCircleWindowId(null);
 });
 
-async function openCircleWindow(pos) {
+// `tab` ('ampel' | 'circle'): mit welchem Tab das Fenster startet — seit v0.7.1
+// gibt es den ↗-Knopf auch im Ampel-Tab. Ein bereits offenes Fenster wird nur
+// fokussiert und per Nachricht auf den gewünschten Tab geschaltet.
+async function openCircleWindow(pos, tab) {
   await waitPopupClosed();
   const existing = await getCircleWindowId();
   if (existing != null) {
     try {
       await api.windows.update(existing, { focused: true });
+      if (tab) {
+        Promise.resolve(api.runtime.sendMessage({ type: 'standaloneShowTab', tab })).catch(() => {});
+      }
       return;
     } catch (e) { await setCircleWindowId(null); } // Fenster gibt es nicht mehr
   }
   const createData = {
-    url: api.runtime.getURL('popup.html') + '?standalone=1',
+    url: api.runtime.getURL('popup.html') + '?standalone=1' + (tab === 'ampel' ? '&tab=ampel' : ''),
     type: 'popup', // rahmenlos wie das Add-on-Popup -> nahtloser Übergang
     width: 660,
     height: 620,
@@ -1244,7 +1442,7 @@ async function handleOpenChart(msg) {
   if (msg.spawnCircle) {
     // Erster Chart-Klick aus dem Popup: erst das Circle-Fenster als "Ersatz"
     // an der Popup-Position, dann den Chart fokussiert obendrauf.
-    await openCircleWindow(msg.pos);
+    await openCircleWindow(msg.pos, msg.tab);
   } else {
     await waitPopupClosed();
   }
@@ -1256,7 +1454,7 @@ api.runtime.onConnect.addListener((port) => {
   popupPort = port;
   port.onMessage.addListener((msg) => {
     if (msg && msg.type === 'openChart') handleOpenChart(msg);
-    else if (msg && msg.type === 'openCircleWindow') openCircleWindow(msg.pos);
+    else if (msg && msg.type === 'openCircleWindow') openCircleWindow(msg.pos, msg.tab);
   });
   port.onDisconnect.addListener(() => {
     if (popupPort === port) popupPort = null;
@@ -1300,6 +1498,12 @@ api.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       }
       case 'circleQuotes': {
         sendResponse(await getCircleQuotes());
+        break;
+      }
+      case 'ampelQuotes': {
+        // cachedOnly: beim Öffnen (kein Netz); sonst gezielt für die
+        // übergebenen Aktien-IDs (Gruppe oder einzelne Aktie).
+        sendResponse(msg.cachedOnly ? await getAmpelQuotesCached() : await getAmpelQuotes(msg.ids));
         break;
       }
       case 'getStockBody': {

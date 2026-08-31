@@ -6,6 +6,13 @@
 > der Renderer. Die Android-App hat eigene Versionsnummern (Tags app-vX.Y.Z):
 > ihre Releases stehen hier als `## App X.Y.Z – Datum` in derselben Liste.
 
+## 0.7.1 – 31.08.2026
+- Neu: **Kurse in der Ampel.** Jede Ampel-Gruppe hat jetzt einen Knopf „Kurse laden" – er holt für alle Aktien der Gruppe den aktuellen Börsenkurs (Yahoo Finance, in €) und zeigt darunter, um wie viel Prozent der Kurs gegenüber dem Vortagesschluss gestiegen oder gefallen ist. Nichts wird von selbst geladen (die Ampel führt über 50 Aktien) – nur auf Klick. Einmal ermittelte Börsensymbole merkt sich die Ampel dauerhaft, Kurse 5 Minuten; beim nächsten Öffnen stehen bekannte Kurse sofort wieder da (leicht ausgegraut, wenn älter als 5 Minuten). Das Laden läuft parallel und gebündelt, die Zeilen füllen sich nach und nach.
+- Neu: **📈-Knopf je Ampel-Aktie** öffnet den Kurs-Chart – wie im Circle, nur ohne Einkaufs-/Kursziel-Linie. Ist das Symbol noch unbekannt, wird es beim Klick ermittelt (nur für diese eine Aktie).
+- Neu: **„In eigenem Fenster öffnen ↗" auch im Ampel-Tab.** Das eigenständige Fenster startet dann in der Ampel; ein Chart-Klick aus dem Popup heraus öffnet es ebenfalls in der Ampel. Ist das Fenster schon offen, wechselt es nur den Tab.
+- Verbessert: Die Zuordnung Aktienname → Börsensymbol prüft den Firmennamen jetzt genau (Rechtsformen ignoriert, Umlaute, ein Tippfehler erlaubt), probiert mehrere Schreibweisen (Klammerzusatz, erstes/letztes Wort) und bevorzugt Euro-Börsen nur innerhalb derselben Firma. Vorher konnte „Bayer" auf BMW („Bayerische Motoren Werke") landen; „Muenchner Rückversicherung" und „Dr. Ing. hc. F. Porsche AG (Porsche AG)" fanden gar nichts. Im Live-Test wurden alle 54 Ampel-Aktien korrekt aufgelöst; das getroffene Symbol steht im Tooltip des Kurses.
+- Die App bekommt dieselben Funktionen mit dem nächsten App-Update (gleicher Code).
+
 ## 0.7.0 – 24.08.2026
 - Neu: **Synchronisation** (Block ganz unten im Popup, Standard aus): Die Ampel schreibt Ampelwechsel, neue/entfernte Aktien, bearbeitete Analysen (nur der Zeitpunkt) und Circle-Käufe/-Verkäufe als Ereignis-Protokoll in einen Sync-Ordner, den du selbst besitzt – per WebDAV (Nextcloud, kDrive, Filen-Server …) oder in einen lokalen Ordner, den dein Cloud-Programm synchronisiert (nur Chrome/Edge). Daraus kann eine Trading-App den aktuellen Stand lesen, auch auf anderen Geräten. Keine Analysetexte, kein Server der Ampel.
 - „Verbindung testen", „Jetzt synchronisieren" und eine Statuszeile zeigen, ob alles ankommt; bei Fehlern warten die Ereignisse und werden beim nächsten Abruf nachgeholt.
