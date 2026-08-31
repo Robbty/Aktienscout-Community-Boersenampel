@@ -19,6 +19,7 @@
         <button type="button" data-range="wochen">Wochen</button>
         <button type="button" data-range="1mo">1M</button>
         <button type="button" data-range="3mo">3M</button>
+        <button type="button" data-range="1y">1J</button>
       </div>
       <!-- Anzeigewährung: nur sichtbar, wenn die Börse nicht in Euro notiert
            und ein FX-Kurs vorliegt. Standard: Euro. -->
@@ -28,7 +29,7 @@
       </div>
     </div>
   </header>
-  <div class="canvas-wrap"><canvas id="chart"></canvas></div>
+  <div class="canvas-wrap"><canvas id="chart"></canvas><div id="loadingInd" class="loading-ind" hidden><span class="spinner"></span>Lade Kursdaten…</div></div>
   <!-- Brush: Mini-Übersicht mit frei ziehbarem Auswahlbereich (zwei Griffe). -->
   <div id="brush" class="brush" title="Bereich wählen: Griffe ziehen, Auswahl verschieben">
     <canvas id="brushCanvas"></canvas>

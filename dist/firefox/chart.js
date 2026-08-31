@@ -36,7 +36,7 @@ const DAY = 86400;
 const nowSec = () => Date.now() / 1000;
 
 // Preset-Fenster (Sekunden zurück ab jetzt); 'kauf' wird dynamisch berechnet.
-const PRESETS = { '12h': 12 * 3600, tage: 7 * DAY, wochen: 21 * DAY, '1mo': 30 * DAY, '3mo': 91 * DAY };
+const PRESETS = { '12h': 12 * 3600, tage: 7 * DAY, wochen: 21 * DAY, '1mo': 30 * DAY, '3mo': 91 * DAY, '1y': 365 * DAY };
 const MIN_SPAN = 2 * 3600; // kleinste wählbare Auswahl: 2 Stunden
 
 const canvas = document.getElementById('chart');
@@ -178,12 +178,16 @@ function draw() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
 
+  // Dezenter Lade-Indikator (drehender Ring) statt reinem Text, solange nichts da ist.
+  document.getElementById('loadingInd').hidden = !(loading && !series);
   if (!series) {
     layout = null;
-    ctx.fillStyle = '#5f6368';
-    ctx.font = '13px system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(loading ? 'Lade Kursdaten…' : 'Keine Kursdaten im gewählten Bereich.', w / 2, h / 2);
+    if (!loading) {
+      ctx.fillStyle = '#5f6368';
+      ctx.font = '13px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Keine Kursdaten im gewählten Bereich.', w / 2, h / 2);
+    }
     return;
   }
 

@@ -11,6 +11,10 @@
 - Auswertung: „Kaufvolumen (kumuliert)" statt „Investiert", neue Kachel „Eingesetztes Kapital".
 - Ampel: Vortags-Veränderung grün/rot, Legende über den Gruppen.
 
+## 0.8.3 – 31.08.2026
+- Kurs-Charts: neuer Zeitraum-Knopf **„1J"** (ein Jahr), wie im Verlauf.
+- Ladevorgänge (Login-Prüfung, „Jetzt prüfen", „Kurse laden", Analyse-Text, Charts, Verlauf) zeigen jetzt einen kleinen drehenden Ring – man sieht, dass etwas passiert, ohne dass es stört.
+
 ## 0.8.2 – 31.08.2026
 - Verlauf: Reihenfolge der Kurven-Schalter neu (Kaufvolumen, Eingesetztes Kapital, Aktuell im Markt, Portfolio-Wert, 1.500 €/Woche × 10, Realisierte Gewinne, Potenzial, Kosten); „Annahme:" aus der Beschriftung gestrichen.
 
@@ -25,7 +29,6 @@
 ## App 0.7.3 – 31.08.2026
 - Neu: Kurse in der Ampel – „Kurse laden" je Gruppe holt Kurs in € und Veränderung 24 h (zum Vortagesschluss, grün/rot), der 📈-Knopf je Aktie öffnet den Chart. Nichts lädt automatisch.
 - Verbessert: Zuordnung Aktienname → Börsensymbol (Bayer wurde vorher fälschlich als BMW erkannt; alle Ampel-Aktien lösen jetzt auf).
-- Enthält außerdem die Synchronisation mit einem Sync-Ordner (WebDAV) aus Version 0.7.0 der Erweiterung.
 
 ## 0.7.3 – 31.08.2026
 - Über den Ampel-Gruppen steht jetzt eine kleine Legende, sobald Kurse geladen sind: „Kurs in € · darunter Veränderung 24 h (zum Vortagesschluss)".
@@ -41,11 +44,7 @@
 - Die App bekommt dieselben Funktionen mit dem nächsten App-Update (gleicher Code).
 
 ## 0.7.0 – 24.08.2026
-- Neu: **Synchronisation** (Block ganz unten im Popup, Standard aus): Die Ampel schreibt Ampelwechsel, neue/entfernte Aktien, bearbeitete Analysen (nur der Zeitpunkt) und Circle-Käufe/-Verkäufe als Ereignis-Protokoll in einen Sync-Ordner, den du selbst besitzt – per WebDAV (Nextcloud, kDrive, Filen-Server …) oder in einen lokalen Ordner, den dein Cloud-Programm synchronisiert (nur Chrome/Edge). Daraus kann eine Trading-App den aktuellen Stand lesen, auch auf anderen Geräten. Keine Analysetexte, kein Server der Ampel.
-- „Verbindung testen", „Jetzt synchronisieren" und eine Statuszeile zeigen, ob alles ankommt; bei Fehlern warten die Ereignisse und werden beim nächsten Abruf nachgeholt.
-- „Snapshot kopieren" legt das aktuelle Vollbild als JSON in die Zwischenablage (für Support und eigene Skripte).
-- Ampel- und Circle-Tab sind unverändert.
-- Doku: EVENTS.md (Format und Regeln der Schnittstelle), README und ANLEITUNG (Einrichtung).
+- Interne Vorbereitungen für eine spätere Erweiterung – im Popup noch nicht sichtbar. Ampel- und Circle-Tab sind unverändert.
 
 ## 0.6.9 – 24.08.2026
 - Circle: Das Kursziel wird nicht mehr aus dem Titel gelesen, sondern aus der Zeile „7 Stück zum Kaufpreis: 575 € - Verkaufspreis: ?" im Beitrag. Steht dort „?", rechnet die Ampel Kaufpreis +10 %; steht eine Zahl, wird sie übernommen und gegen das 10-%-Ziel geprüft (Toleranz ca. 3 %) – bei starker Abweichung erscheint sie rot. Der Kurs im Titel ist nur der Tageskurs bei der letzten Bearbeitung des Eintrags und wird lediglich im Tooltip gezeigt. (Auslöser: Wells Fargo zeigte ein negatives Potenzial, weil Titel und Beitrag nicht zusammenpassten.)

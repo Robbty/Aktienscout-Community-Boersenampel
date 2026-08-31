@@ -59,6 +59,12 @@ const fmtNum = (n, digits = 2) =>
   Number(n).toLocaleString('de-DE', { minimumFractionDigits: digits, maximumFractionDigits: digits });
 const fmtEur = (n) => fmtNum(n) + ' €';
 const setMeta = (t) => { document.getElementById('chartMeta').textContent = t; };
+// Dezenter Lade-Indikator (drehender Ring) über dem Chart; null = ausblenden.
+function setLoading(text) {
+  const el = document.getElementById('loadingInd');
+  el.hidden = !text;
+  if (text) document.getElementById('loadingText').textContent = text;
+}
 
 // --- Zeit -> Wert (Treppenkurve) ------------------------------------------------
 function dayIndexAt(tSec) {
@@ -113,10 +119,18 @@ function draw() {
   const curves = result && sel ? activeCurves() : [];
   if (!curves.length) {
     layout = null;
-    ctx.fillStyle = '#5f6368';
-    ctx.font = '13px system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(result && sel ? 'Keine Kurve ausgewählt – unten einschalten.' : statusText, w / 2, h / 2);
+    if (result && sel) {
+      ctx.fillStyle = '#5f6368';
+      ctx.font = '13px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Keine Kurve ausgewählt – unten einschalten.', w / 2, h / 2);
+    } else if (statusText) {
+      // Ohne Daten: Text auf der Fläche; das Laden selbst zeigt der Ring an.
+      ctx.fillStyle = '#5f6368';
+      ctx.font = '13px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(statusText, w / 2, h / 2);
+    }
     return;
   }
 
@@ -523,7 +537,7 @@ async function loadPrices(symbols) {
       (span.sell != null || Date.now() - (hit.fetchedAt || 0) < HIST_MAX_AGE_MS);
     let ser = fresh ? hit : null;
     if (!ser) {
-      setMeta('Lade Kursverläufe ' + (done + 1) + '/' + todo.length + ' (' + symbol + ')…');
+      setLoading('Lade Kursverläufe ' + (done + 1) + '/' + todo.length + ' (' + symbol + ')');
       try { ser = await fetchHistoryEur(symbol, fromSec, toSec); } catch (e) { ser = null; }
       if (ser) {
         cache[key] = { ...ser, from: fromSec, to: toSec, fetchedAt: Date.now() };
@@ -536,6 +550,7 @@ async function loadPrices(symbols) {
     if (done % 3 === 0 || done === todo.length) rebuild();
   }
   if (changed) saveHistoryCache(cache);
+  setLoading(null);
 }
 
 function metaLine(circleMeta) {
@@ -550,12 +565,15 @@ function metaLine(circleMeta) {
 }
 
 async function init() {
+  statusText = '';
+  setLoading('Lade Circle-Daten…');
   draw();
   let stored;
   try {
     stored = await api.storage.local.get(['circle', 'circleMeta', 'quoteSymbols']);
   } catch (e) {
     statusText = 'Speicher nicht lesbar.';
+    setLoading(null);
     draw();
     return;
   }
@@ -563,6 +581,7 @@ async function init() {
   if (circleMeta.lastPollOk !== true || !stored.circle || !stored.circle.modules) {
     statusText = 'Keine Circle-Daten – bitte im Popup anmelden bzw. „Jetzt prüfen".';
     setMeta('');
+    setLoading(null);
     draw();
     return;
   }

@@ -138,6 +138,16 @@ body.searching #activity { display: none; }
 .stock-quote.neg .pct { color: var(--red); }
 .stock-list .chart-btn { flex: none; }
 
+/* Lade-Indikator: kleiner drehender Ring hinter dem Text, bewusst unauffällig. */
+.spinner {
+  display: inline-block; width: 10px; height: 10px; margin-left: 5px; vertical-align: -1px;
+  border: 2px solid var(--line); border-top-color: var(--muted); border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+.primary-btn .spinner { border-color: rgba(255,255,255,.35); border-top-color: #fff; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
 /* Footer */
 footer { border-top: 1px solid var(--line); padding: 8px 12px; display: flex; flex-direction: column; gap: 8px; flex: none; }
 .settings { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); }

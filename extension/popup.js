@@ -53,6 +53,15 @@ function relDays(ts) {
 
 function colorOf(stock) { return stock.color || 'other'; }
 
+// Ladezustand anzeigen: Text plus kleiner drehender Ring (CSS .spinner).
+function busy(el, text) {
+  el.textContent = text;
+  const sp = document.createElement('span');
+  sp.className = 'spinner';
+  sp.setAttribute('aria-hidden', 'true');
+  el.appendChild(sp);
+}
+
 // --- Render: Statuszeile ----------------------------------------------------
 function renderStatus() {
   if (activeTab !== 'ampel') return; // die Kopf-Statuszeile gehört gerade dem Circle-Tab
@@ -198,7 +207,7 @@ function renderGroups() {
     const qBtn = document.createElement('button');
     qBtn.type = 'button';
     qBtn.className = 'link-btn quotes-btn';
-    qBtn.textContent = groupLoading ? 'Kurse laden…' : 'Kurse laden';
+    if (groupLoading) busy(qBtn, 'Kurse laden'); else qBtn.textContent = 'Kurse laden';
     qBtn.disabled = groupLoading;
     qBtn.title = 'Aktuelle Kurse (Yahoo Finance) für alle Aktien dieser Gruppe holen';
     qBtn.addEventListener('click', (e) => {
@@ -384,7 +393,7 @@ async function openStock(id) {
 
   const body = document.getElementById('detailBody');
   body.className = 'detail-body loading';
-  body.textContent = 'Lade Analyse…';
+  busy(body, 'Lade Analyse');
   const r = await send({ type: 'getStockBody', id });
   if (detailStockId !== id) return; // inzwischen weitergeklickt/geschlossen
   if (r && r.ok) {
@@ -481,7 +490,7 @@ function ampelChartButton(s) {
     if (!quote || !quote.symbol) {
       // Symbol noch unbekannt -> jetzt (nur für diese Aktie) auflösen.
       btn.disabled = true;
-      btn.textContent = '…';
+      busy(btn, '');
       await loadAmpelQuotes([s.id]);
       quote = ampelQuotes[s.id];
       if (!quote || !quote.symbol) {
@@ -558,7 +567,7 @@ function renderAll() {
 function showChecking() {
   const el = document.getElementById('status');
   el.classList.remove('error');
-  el.textContent = 'Prüfe Login…';
+  busy(el, 'Prüfe Login');
   setDataVisible(false); // nichts Sensibles zeigen, bis der Login bestätigt ist
   document.getElementById('ampelNoAccess').hidden = true;
 }
@@ -643,10 +652,10 @@ function fmtEur(n) {
 
 function signClass(n) { return n > 0 ? 'pos' : n < 0 ? 'neg' : ''; }
 
-function setCircleStatus(text, isError) {
+function setCircleStatus(text, isError, isBusy) {
   if (activeTab !== 'circle') return;
   const el = document.getElementById('status');
-  el.textContent = text;
+  if (isBusy) busy(el, text); else el.textContent = text;
   el.classList.toggle('error', !!isError);
 }
 
@@ -746,7 +755,7 @@ document.getElementById('portfolioChartBtn').addEventListener('click', async (e)
   const btn = e.currentTarget;
   const label = btn.textContent;
   btn.disabled = true;
-  btn.textContent = '… Symbole';
+  busy(btn, 'Symbole');
   try { await send({ type: 'circleSymbols' }); } catch (err) { /* Seite zeigt dann "ohne Kursverlauf" */ }
   btn.disabled = false;
   btn.textContent = label;
@@ -1183,7 +1192,7 @@ async function refreshCircle() {
   }
 
   hideCircleBlocks();
-  setCircleStatus('Prüfe Zugang…', false);
+  setCircleStatus('Prüfe Zugang', false, true);
   const r = await send({ type: 'circlePollNow' });
   if (r) {
     state.circle = r.circle;
@@ -1260,7 +1269,7 @@ async function openChangelog() {
   const sec = document.getElementById('changelog');
   const body = document.getElementById('changelogBody');
   sec.hidden = false;
-  body.textContent = 'Lade…';
+  busy(body, 'Lade');
   try {
     const res = await fetch(api.runtime.getURL('changelog.md'));
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -1425,7 +1434,7 @@ searchEl.addEventListener('keydown', (e) => {
 document.getElementById('pollNow').addEventListener('click', async (e) => {
   const btn = e.currentTarget;
   btn.disabled = true;
-  btn.textContent = 'Prüfe…';
+  busy(btn, 'Prüfe');
   if (activeTab === 'circle') {
     await refreshCircle();
   } else {
