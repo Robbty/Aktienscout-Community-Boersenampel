@@ -28,3 +28,6 @@ dist-test/
 
 # Lokale Planungs-Notizen (Phase 2/3, Kurs-APIs, Fenster-/Speicher-Optionen)
 NOTIZEN-PLANUNG.md
+
+# Interne Arbeitsnotizen (nur lokal, nie pushen)
+Handoff-rollover.md
