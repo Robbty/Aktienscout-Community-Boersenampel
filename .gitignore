@@ -37,3 +37,6 @@ NOTIZEN-PLANUNG.md
 
 # Interne Arbeitsnotizen (nur lokal, nie pushen)
 Handoff-rollover.md
+
+# Merkdatei von web-ext sign im signierten Ordner (gehört nicht ins Paket)
+.amo-upload-uuid
