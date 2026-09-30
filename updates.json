@@ -1,7 +1,18 @@
 {
   "addons": {
     "boersenampel-watcher@aktienscout": {
-      "updates": []
+      "updates": [
+        {
+          "version": "0.8.5",
+          "update_link": "https://github.com/Robbty/Aktienscout-Community-Boersenampel/releases/download/firefox/boersenampel-firefox-0.8.5.xpi",
+          "update_hash": "sha256:c9074cc06f728dee1c790bd04e75b716079be7df5c1208409d0ed647feaaa200",
+          "applications": {
+            "gecko": {
+              "strict_min_version": "140.0"
+            }
+          }
+        }
+      ]
     }
   }
 }
