@@ -77,16 +77,17 @@ In Firefox brauchst du kein ZIP und keinen Ordner – ein Klick genügt.
 
 1. Öffne diese Anleitung **in Firefox** und klick auf diesen Link:
    👉 **[Börsenampel für Firefox installieren](https://github.com/Robbty/Aktienscout-Community-Boersenampel/releases/download/firefox/boersenampel-firefox.xpi)**
-2. Firefox fragt oben, ob die Website ein Add-on installieren darf. Klick auf **„Installation fortsetzen"**.
-3. Firefox zeigt **„Börsenampel Watcher hinzufügen"**. Klick auf **„Hinzufügen"**. Fertig! 🎉
+2. Firefox fragt oben: **„… das Installieren eines Add-ons erlauben?"** Klick auf **„Installation fortsetzen"**.
+3. Firefox zeigt **„Börsenampel Watcher hinzufügen"**. Klick auf **„Hinzufügen"**.
+4. Firefox meldet **„Börsenampel Watcher wurde hinzugefügt."** Setz dort gleich den Haken bei **„Erweiterung an Symbolleiste anheften"** – dann ist das Ampel-Symbol immer oben rechts sichtbar. Fertig! 🎉
 
 Die Ampel **bleibt dauerhaft** – auch nach dem Schließen von Firefox. Neue Versionen holt sich Firefox von selbst.
 
-Tipp: Das Ampel-Symbol liegt zuerst hinter dem Puzzleteil 🧩 („Erweiterungen") oben rechts. Dort auf das Zahnrad neben der Börsenampel klicken → **„An Symbolleiste anheften"**, dann ist sie immer sichtbar.
+Haken vergessen? Das Ampel-Symbol liegt dann hinter dem Puzzleteil 🧩 („Erweiterungen") oben rechts. Dort auf das Zahnrad neben der Börsenampel klicken → **„An Symbolleiste anheften"**.
 
 > 🦊 **Firefox lädt die Datei nur herunter, statt zu fragen?** Dann so: In die Adresszeile **`about:addons`** tippen → oben rechts auf das **Zahnrad** ⚙️ klicken → **„Add-on aus Datei installieren…"** → die heruntergeladene Datei `boersenampel-firefox.xpi` wählen → **„Hinzufügen"**.
 >
-> **Du hattest die Ampel bisher über `about:debugging` geladen?** Klick einfach auf den Link oben. Das Laden nach jedem Firefox-Start entfällt ab jetzt; den entpackten Ordner brauchst du nicht mehr.
+> **Du hattest die Ampel bisher über `about:debugging` geladen?** Klick einfach auf den Link oben. Deine Einstellungen und die Chronik **bleiben erhalten**. Das Laden nach jedem Firefox-Start entfällt ab jetzt; den entpackten Ordner brauchst du nicht mehr. (Ist die Ampel gerade noch über `about:debugging` geladen, übernimmt die dauerhafte Version beim nächsten Start von Firefox.)
 >
 > Du brauchst **Firefox 140 oder neuer** (Menü ☰ → „Hilfe" → „Über Firefox" zeigt deine Version).
 >
