@@ -6,6 +6,11 @@
 > der Renderer. Die Android-App hat eigene Versionsnummern (Tags app-vX.Y.Z):
 > ihre Releases stehen hier als `## App X.Y.Z – Datum` in derselben Liste.
 
+## 0.8.5 – 30.09.2026
+- **Firefox: Die Ampel bleibt jetzt dauerhaft.** Das Add-on ist von Mozilla signiert und wird mit einem Klick auf einen Link installiert – kein erneutes Laden mehr nach jedem Firefox-Start. Neue Versionen holt sich Firefox künftig von selbst. Nötig ist Firefox 140 oder neuer.
+- Erweiterung und Android-App tragen jetzt dieselbe Versionsnummer.
+- Doku: Anleitung für Firefox neu geschrieben (Installation per Link, Hilfe falls Firefox die Datei nur herunterlädt, automatische Updates). Der Weg über `about:debugging` steht für Entwickler in der README.
+
 ## App 0.8.2 – 31.08.2026
 - Neu: **Circle-Gesamtübersicht** („📈 Verlauf" neben „Auswertung"): Kurven vom ersten Kauf bis heute – Kaufvolumen, eingesetztes Kapital, aktuell im Markt, Portfolio-Wert zum Tageskurs, 1.500 €/Woche × 10, realisierte Gewinne, Potenzial, Kosten – einzeln ein-/ausblendbar, Zeitraum wie bei den Kurs-Charts (plus „1J").
 - Auswertung: „Kaufvolumen (kumuliert)" statt „Investiert", neue Kachel „Eingesetztes Kapital".

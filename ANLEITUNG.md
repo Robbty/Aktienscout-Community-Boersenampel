@@ -73,18 +73,24 @@ Das Ampel-Symbol ist jetzt oben rechts. Tipp: Auf das Puzzleteil 🧩 klicken un
 
 ## Einbauen in Firefox
 
-1. Projekt herunterladen und entpacken (wie oben, Schritte 1–2).
-2. Tippe in die Adresszeile: **`about:debugging`** und drücke Enter.
-3. Links auf **„Dieser Firefox"** klicken.
-4. Rechts steht der Bereich **„Temporäre Erweiterungen"**. Siehst du darunter keinen Knopf, ist der Bereich eingeklappt – dann einmal auf die Überschrift **„Temporäre Erweiterungen"** klicken, damit er aufklappt.
-5. Klick auf **„Temporäres Add-on laden…"**.
-6. Geh in den Ordner **`dist`** → **`firefox`** und wähle die Datei **`manifest.json`**. Fertig! 🎉
+In Firefox brauchst du kein ZIP und keinen Ordner – ein Klick genügt.
 
-> 🦊 **Wichtig bei Firefox:** Auf diesem Weg bleibt die Ampel nur, bis du Firefox schließt. Danach die Schritte 2–6 wiederholen.
+1. Öffne diese Anleitung **in Firefox** und klick auf diesen Link:
+   👉 **[Börsenampel für Firefox installieren](https://github.com/Robbty/Aktienscout-Community-Boersenampel/releases/download/firefox/boersenampel-firefox.xpi)**
+2. Firefox fragt oben, ob die Website ein Add-on installieren darf. Klick auf **„Installation fortsetzen"**.
+3. Firefox zeigt **„Börsenampel Watcher hinzufügen"**. Klick auf **„Hinzufügen"**. Fertig! 🎉
+
+Die Ampel **bleibt dauerhaft** – auch nach dem Schließen von Firefox. Neue Versionen holt sich Firefox von selbst.
+
+Tipp: Das Ampel-Symbol liegt zuerst hinter dem Puzzleteil 🧩 („Erweiterungen") oben rechts. Dort auf das Zahnrad neben der Börsenampel klicken → **„An Symbolleiste anheften"**, dann ist sie immer sichtbar.
+
+> 🦊 **Firefox lädt die Datei nur herunter, statt zu fragen?** Dann so: In die Adresszeile **`about:addons`** tippen → oben rechts auf das **Zahnrad** ⚙️ klicken → **„Add-on aus Datei installieren…"** → die heruntergeladene Datei `boersenampel-firefox.xpi` wählen → **„Hinzufügen"**.
 >
-> **Warum?** Firefox behält nur Add-ons dauerhaft, die Mozilla geprüft und digital signiert hat – die Ampel aus dem Ordner ist das noch nicht. Mozilla erklärt das hier: [Add-on-Signierung in Firefox](https://support.mozilla.org/de/kb/Add-on-Signierung-in-Firefox). Die signierte Ampel, die du mit einem Klick installierst und die dann dauerhaft bleibt, kommt mit Version 0.8.5; ab dann steht an dieser Stelle der Link dazu.
+> **Du hattest die Ampel bisher über `about:debugging` geladen?** Klick einfach auf den Link oben. Das Laden nach jedem Firefox-Start entfällt ab jetzt; den entpackten Ordner brauchst du nicht mehr.
 >
-> Einen „Entwicklermodus" wie bei Chrome gibt es in Firefox nicht – `about:debugging` ist bereits die Entwickler-Seite, es muss nichts extra eingeschaltet werden.
+> Du brauchst **Firefox 140 oder neuer** (Menü ☰ → „Hilfe" → „Über Firefox" zeigt deine Version).
+>
+> Nur ausprobieren, ohne zu installieren (für Entwickler)? Das geht über `about:debugging` – die Schritte stehen in der [README unter „Für Entwickler"](README.md#für-entwickler).
 
 ---
 
@@ -200,15 +206,17 @@ Verkäufe stehen dort im Bereich **„Käufe & Verkäufe"** – deine eigene kle
 
 ## Update einbauen 🔄
 
-Es gibt eine neue Version? So holst du sie dir. Dauert zwei Minuten.
+Es gibt eine neue Version? So holst du sie dir.
+
+**In Firefox** musst du nichts tun: Firefox holt neue Versionen der Ampel von selbst, meist innerhalb eines Tages. Sofort nachsehen geht so: **`about:addons`** in die Adresszeile tippen → oben rechts auf das **Zahnrad** ⚙️ → **„Auf Updates überprüfen"**. Kontrolle: Klick auf das Ampel-Symbol – ganz unten im Popup steht die Versionsnummer.
+
+**In Chrome (oder Edge, Brave, Opera)** dauert es zwei Minuten:
 
 1. **Lade das Projekt neu herunter** – gleicher Link wie beim ersten Mal:
    👉 **[Projekt als ZIP herunterladen](https://github.com/Robbty/Aktienscout-Community-Boersenampel/archive/refs/heads/main.zip)**
 2. **Entpacke das ZIP an denselben Ort** wie damals. Ersetze dabei den alten Ordner (Frage „Dateien ersetzen?" mit **Ja** beantworten).
 
 > 🪤 **Die häufigste Falle:** Liegt die alte ZIP-Datei noch im Download-Ordner, nennt der Browser die neue automatisch **„main (1).zip"** – und beim Entpacken entsteht ein **neuer Ordner „main (1)"** statt des ersetzten alten. Chrome schaut aber weiterhin in den **alten** Ordner und zeigt darum weiter die alte Version. Also: alte ZIP vorher löschen oder beim Entpacken darauf achten, dass wirklich der **bisherige** Ordner ersetzt wird (Frage „Dateien ersetzen?" muss kommen).
-
-**Dann in Chrome (oder Edge, Brave, Opera):**
 
 3. Tippe in die Adresszeile: **`chrome://extensions`** und drücke Enter.
 4. Der **Entwicklermodus** muss eingeschaltet sein – sonst siehst du den Pfeil aus Schritt 5 gar nicht. So geht's: Auf der Seite `chrome://extensions` steht **oben rechts** ein Schalter **„Entwicklermodus"** 🛠️ – anklicken, bis er blau ist. Danach erscheinen an den Karten der Erweiterungen zusätzliche Knöpfe, unter anderem der Pfeil ↻. (Ohne Entwicklermodus ist die Ampel seit Chrome 133 ohnehin abgeschaltet – siehe Hinweis bei der Installation.)
@@ -220,10 +228,6 @@ Deine Einstellungen und die Chronik **bleiben erhalten**. 👍
 > ⚠️ **Wichtig:** Nicht „Entfernen" und neu laden – dabei gehen Einstellungen und Chronik verloren. Der Pfeil ↻ reicht völlig.
 >
 > Hast du das ZIP an einen **anderen** Ort entpackt? Dann geht es nur über „Entfernen" und **„Entpackte Erweiterung laden"** mit dem neuen Ordner (im Datei-Dialog wirklich den **neuen** Ordner wählen – der Dialog schlägt gern den alten vor). Die Chronik beginnt dann leider von vorn.
-
-**In Firefox:**
-
-3. Firefox lädt das Add-on ja bei jedem Start neu (siehe oben). Einfach wie gewohnt über **`about:debugging`** laden – es nimmt automatisch die neue Version aus dem ersetzten Ordner. Läuft Firefox gerade noch mit der alten Version, reicht dort auch der Knopf **„Neu laden"** an der Ampel-Karte. Ein Entwicklermodus ist nicht nötig.
 
 ---
 

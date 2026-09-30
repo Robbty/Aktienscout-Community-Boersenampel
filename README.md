@@ -67,10 +67,11 @@ Die fertigen, ladefertigen Ordner liegen unter `dist/`.
 3. **„Entpackte Erweiterung laden"** → den Ordner **`dist/chrome`** auswählen.
 
 **Firefox**
-1. `about:debugging` öffnen → **„Dieser Firefox"**.
-2. Im Bereich **„Temporäre Erweiterungen"** (falls eingeklappt: Überschrift anklicken) auf **„Temporäres Add-on laden…"** → die Datei **`dist/firefox/manifest.json`** auswählen.
+Kein ZIP nötig – das Add-on ist von Mozilla signiert und bleibt dauerhaft installiert:
+1. In Firefox (ab Version 140) auf **[Börsenampel für Firefox installieren](https://github.com/Robbty/Aktienscout-Community-Boersenampel/releases/download/firefox/boersenampel-firefox.xpi)** klicken.
+2. **„Installation fortsetzen"** → **„Hinzufügen"**.
 
-> ℹ️ In Firefox ist das ein *temporäres* Add-on: Es verschwindet beim Schließen des Browsers und muss dann erneut geladen werden. Grund: Firefox behält nur Add-ons dauerhaft, die Mozilla signiert hat ([Add-on-Signierung in Firefox](https://support.mozilla.org/de/kb/Add-on-Signierung-in-Firefox)). Die signierte, dauerhaft installierbare Ausgabe kommt mit Version 0.8.5; wer selbst signieren will: [Mozilla-Anleitung zur Self-Distribution](https://extensionworkshop.com/documentation/publish/self-distribution/).
+Neue Versionen holt sich Firefox von selbst. Lädt Firefox die Datei nur herunter: `about:addons` → Zahnrad → **„Add-on aus Datei installieren…"**.
 
 Anschließend auf das Ampel-Symbol klicken und **„Jetzt prüfen"** – der erste Lauf setzt die Vergleichsbasis, ab dann werden Änderungen erkannt.
 
@@ -92,6 +93,8 @@ Skool ist eine Next.js-App; die komplette Ampel-Struktur steckt als sauberes JSO
 - **Build:** `node build.mjs` erzeugt `dist/chrome` und `dist/firefox` aus `extension/` (nur das Manifest unterscheidet sich je Ziel). Zusätzlich entsteht `dist-test/` (git-ignoriert): eine parallel ladbare Test-Variante, bei der beide Beitritts-Hinweise simuliert werden – siehe Schalter in `extension/lib/debug.js`. Keine Abhängigkeiten, kein Bundler.
 - **Tests:** `node test/lifecycle.test.mjs` prüft die Änderungserkennung über den ganzen Ablauf (Login → Bestätigen → Logout → Änderungen → Login) inkl. Logbuch und Begrenzung; `node test/circle.test.mjs` prüft Titel-/Text-Parser und Portfolio-Rechnung des Circle-Tabs gegen alle live gesehenen Schreibweisen; `node test/quotes.test.mjs` prüft die Yahoo-Parser (Chart, Symbolsuche, €-Umrechnung); `node test/events.test.mjs`, `node test/sync-webdav.test.mjs` und `node test/sync-flush.test.mjs` prüfen die Event-Log-Schnittstelle (Format, WebDAV-Adapter, Schreiblauf gegen einen lokalen Mini-WebDAV-Server).
 - **Syntax-Check:** `node --check extension/<datei>.js`.
+- **Firefox ohne Installation ausprobieren (temporär):** `about:debugging` öffnen → links **„Dieser Firefox"** → im Bereich **„Temporäre Erweiterungen"** (falls eingeklappt: Überschrift anklicken) auf **„Temporäres Add-on laden…"** → die Datei **`dist/firefox/manifest.json`** wählen. Ein so geladenes Add-on verschwindet beim Schließen von Firefox – dauerhaft bleiben nur von Mozilla signierte Add-ons ([Add-on-Signierung in Firefox](https://support.mozilla.org/de/kb/Add-on-Signierung-in-Firefox)).
+- **Firefox-Freigabe (signieren):** Mozilla-API-Schlüssel von <https://addons.mozilla.org/developers/addon/api/key/> in die git-ignorierte Datei `.amo-credentials` eintragen (`WEB_EXT_API_KEY=…`, `WEB_EXT_API_SECRET=…`). Dann `node tools/release-firefox.mjs sign` (lässt `dist/firefox` über Mozillas [Self-Distribution](https://extensionworkshop.com/documentation/publish/self-distribution/) signieren → `web-ext-artifacts/boersenampel-firefox-<version>.xpi`), die Datei testen, `node tools/release-firefox.mjs publish` (lädt sie ins GitHub-Release `firefox` und trägt sie in `updates.json` ein), zuletzt committen und pushen. Mozilla signiert jede Versionsnummer nur einmal.
 - Mehr zu Architektur und Konventionen: siehe [`CLAUDE.md`](CLAUDE.md).
 
 Nach Codeänderungen `node build.mjs` laufen lassen und die `dist/`-Ordner mit committen, damit die ladefertigen Builds aktuell bleiben.

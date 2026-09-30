@@ -191,12 +191,20 @@ function renderGroups() {
     const changedInGroup = all.filter((s) => changedIds.has(s.id)).length;
     const head = document.createElement('div');
     head.className = 'group-head';
-    head.innerHTML =
-      '<span class="dot ' + color + '"></span>' +
-      '<span class="group-title">' + SECTION_LABEL[color] + '</span>' +
-      (changedInGroup ? '<span class="changed-chip" title="geänderte Aktien">' + changedInGroup + ' geändert</span>' : '') +
-      '<span class="group-count">' + items.length + (filter ? '/' + all.length : '') + '</span>' +
-      '<span class="chev">▾</span>';
+    // Per DOM statt innerHTML mit zusammengesetzten Werten — das bemängelt
+    // Mozillas Prüfung beim Signieren des Firefox-Add-ons.
+    const headSpan = (cls, text) => {
+      const sp = document.createElement('span');
+      sp.className = cls;
+      if (text != null) sp.textContent = text;
+      head.appendChild(sp);
+      return sp;
+    };
+    headSpan('dot ' + color);
+    headSpan('group-title', SECTION_LABEL[color]);
+    if (changedInGroup) headSpan('changed-chip', changedInGroup + ' geändert').title = 'geänderte Aktien';
+    headSpan('group-count', items.length + (filter ? '/' + all.length : ''));
+    headSpan('chev', '▾');
     head.addEventListener('click', () => {
       collapsed[color] = !collapsed[color];
       group.classList.toggle('collapsed');

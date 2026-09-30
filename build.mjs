@@ -76,6 +76,8 @@ async function buildTestVariant() {
     manifest.name += ' (TEST ohne Zugang)';
     if (manifest.browser_specific_settings && manifest.browser_specific_settings.gecko) {
       manifest.browser_specific_settings.gecko.id = 'boersenampel-watcher-test@aktienscout';
+      // Die Test-Variante ist nie signiert und soll keine Updates suchen.
+      delete manifest.browser_specific_settings.gecko.update_url;
     }
     await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
   }

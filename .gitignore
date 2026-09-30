@@ -25,6 +25,12 @@ dist-test/
 *.zip
 *.crx
 *.pem
+*.xpi
+web-ext-artifacts/
+
+# Mozilla-API-Schlüssel zum Signieren des Firefox-Add-ons (tools/release-firefox.mjs).
+# Das Repo ist öffentlich — diese Datei darf nie committet werden.
+.amo-credentials
 
 # Lokale Planungs-Notizen (Phase 2/3, Kurs-APIs, Fenster-/Speicher-Optionen)
 NOTIZEN-PLANUNG.md
