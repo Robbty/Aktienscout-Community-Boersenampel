@@ -206,24 +206,32 @@ function cmdPublish(arg) {
   copyFileSync(file, stable);
 
   let exists = true;
-  try { gh(['release', 'view', RELEASE_TAG, '--json', 'tagName'], { quiet: true }); } catch (e) { exists = false; }
+  try { gh(['api', `repos/${REPO}/releases/tags/${RELEASE_TAG}`, '--jq', '.id'], { quiet: true }); } catch (e) { exists = false; }
   if (!exists) {
-    // --latest=false ist zwingend: der In-App-Updater der Android-App und der
+    // make_latest=false ist zwingend: der In-App-Updater der Android-App und der
     // README-Link lesen releases/latest — das muss das App-Release bleiben.
-    gh(['release', 'create', RELEASE_TAG, '--latest=false',
-      '--title', 'Börsenampel für Firefox',
-      '--notes', [
-        'Die Börsenampel als **dauerhaft installierbares Firefox-Add-on** (von Mozilla signiert).',
-        '',
-        `**Installieren:** in Firefox auf **${STABLE_NAME}** klicken → „Installation fortsetzen" → „Hinzufügen".`,
-        'Das Add-on bleibt nach dem Schließen von Firefox erhalten und aktualisiert sich von selbst.',
-        '',
-        `Anleitung: https://github.com/${REPO}/blob/main/ANLEITUNG.md`,
-        '',
-        `Die Dateien mit Versionsnummer sind die einzelnen Ausgaben; ${STABLE_NAME} ist immer die neueste.`,
-      ].join('\n')]);
+    // Über die API statt `gh release create`: ältere gh-Versionen (Ubuntu 2.4)
+    // kennen den Schalter --latest nicht.
+    try {
+      gh(['api', '--method', 'POST', `repos/${REPO}/releases`,
+        '-f', `tag_name=${RELEASE_TAG}`,
+        '-f', 'name=Börsenampel für Firefox',
+        '-f', 'make_latest=false',
+        '-f', 'body=' + [
+          'Die Börsenampel als **dauerhaft installierbares Firefox-Add-on** (von Mozilla signiert).',
+          '',
+          `**Installieren:** in Firefox auf **${STABLE_NAME}** klicken → „Installation fortsetzen" → „Hinzufügen".`,
+          'Das Add-on bleibt nach dem Schließen von Firefox erhalten und aktualisiert sich von selbst.',
+          '',
+          `Anleitung: https://github.com/${REPO}/blob/main/ANLEITUNG.md`,
+          '',
+          `Die Dateien mit Versionsnummer sind die einzelnen Ausgaben; ${STABLE_NAME} ist immer die neueste.`,
+        ].join('\n'),
+        '--jq', '.html_url']);
+    } catch (e) { fail('GitHub-Release konnte nicht angelegt werden (siehe Meldung oben). Nichts hochgeladen, updates.json unverändert.'); }
   }
-  gh(['release', 'upload', RELEASE_TAG, versioned, stable, '--clobber']);
+  try { gh(['release', 'upload', RELEASE_TAG, versioned, stable, '--clobber']); }
+  catch (e) { fail('Hochladen ins GitHub-Release fehlgeschlagen (siehe Meldung oben). updates.json unverändert.'); }
 
   updates.addons[gecko.id].updates.push({
     version,
@@ -238,7 +246,8 @@ function cmdPublish(arg) {
   console.log('✓ updates.json ergänzt (' + version + ')');
   if (!latest.startsWith('app-v')) {
     console.error(`✗ ACHTUNG: releases/latest zeigt auf "${latest}" statt auf ein App-Release — der In-App-Updater der`
-      + ` Android-App liest das.\n  Beheben: gh release edit ${RELEASE_TAG} --latest=false`);
+      + ` Android-App liest das.\n  Beheben: gh api --method PATCH repos/${REPO}/releases/<id> -f make_latest=false`
+      + ` (id: gh api repos/${REPO}/releases/tags/${RELEASE_TAG} --jq .id)`);
     process.exitCode = 1;
   }
   console.log('  Jetzt updates.json (und die Doku) committen und pushen — erst damit sehen installierte Add-ons das Update.');
