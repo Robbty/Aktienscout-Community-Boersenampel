@@ -16,6 +16,7 @@
 
 ## 0.8.4 – 31.08.2026
 - Chart- und Verlauf-Fenster passen sich kleinen Fenstern an: Zeitraum-Knöpfe brechen unter den Titel um, die Legende scrollt bei Platznot innen, die Seite wird nie größer als das Fenster.
+- Doku: Firefox-Anleitung berichtigt (30.09.2026) – der Menüpunkt heißt „Dieser Firefox", der Bereich „Temporäre Erweiterungen" muss aufgeklappt sein, bevor der Knopf „Temporäres Add-on laden…" erscheint. Dazu erklärt, warum die Ampel in Firefox bisher nur bis zum Schließen bleibt (Mozilla-Signatur), mit Link zur Mozilla-Hilfe.
 
 ## App 0.8.4 – 31.08.2026
 - Behoben: Im Hochformat nutzte die App nur den oberen Teil des Bildschirms – jetzt füllt sie das ganze Fenster; die Tab-Leiste bleibt oben, die Fußzeile unten, der Inhalt dazwischen scrollt.

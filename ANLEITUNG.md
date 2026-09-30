@@ -75,11 +75,14 @@ Das Ampel-Symbol ist jetzt oben rechts. Tipp: Auf das Puzzleteil 🧩 klicken un
 
 1. Projekt herunterladen und entpacken (wie oben, Schritte 1–2).
 2. Tippe in die Adresszeile: **`about:debugging`** und drücke Enter.
-3. Links auf **„Dieses Firefox"** klicken.
-4. Klick auf **„Temporäres Add-on laden…"**.
-5. Geh in den Ordner **`dist`** → **`firefox`** und wähle die Datei **`manifest.json`**. Fertig! 🎉
+3. Links auf **„Dieser Firefox"** klicken.
+4. Rechts steht der Bereich **„Temporäre Erweiterungen"**. Siehst du darunter keinen Knopf, ist der Bereich eingeklappt – dann einmal auf die Überschrift **„Temporäre Erweiterungen"** klicken, damit er aufklappt.
+5. Klick auf **„Temporäres Add-on laden…"**.
+6. Geh in den Ordner **`dist`** → **`firefox`** und wähle die Datei **`manifest.json`**. Fertig! 🎉
 
-> 🦊 **Wichtig bei Firefox:** Beim Schließen von Firefox geht das Add-on wieder weg. Dann einfach die Schritte 2–5 wiederholen. (Eine dauerhafte Version ist möglich, braucht aber etwas mehr Aufwand.)
+> 🦊 **Wichtig bei Firefox:** Auf diesem Weg bleibt die Ampel nur, bis du Firefox schließt. Danach die Schritte 2–6 wiederholen.
+>
+> **Warum?** Firefox behält nur Add-ons dauerhaft, die Mozilla geprüft und digital signiert hat – die Ampel aus dem Ordner ist das noch nicht. Mozilla erklärt das hier: [Add-on-Signierung in Firefox](https://support.mozilla.org/de/kb/Add-on-Signierung-in-Firefox). Die signierte Ampel, die du mit einem Klick installierst und die dann dauerhaft bleibt, kommt mit Version 0.8.5; ab dann steht an dieser Stelle der Link dazu.
 >
 > Einen „Entwicklermodus" wie bei Chrome gibt es in Firefox nicht – `about:debugging` ist bereits die Entwickler-Seite, es muss nichts extra eingeschaltet werden.
 

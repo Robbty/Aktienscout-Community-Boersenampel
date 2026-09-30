@@ -67,10 +67,10 @@ Die fertigen, ladefertigen Ordner liegen unter `dist/`.
 3. **„Entpackte Erweiterung laden"** → den Ordner **`dist/chrome`** auswählen.
 
 **Firefox**
-1. `about:debugging` öffnen → **„Dieses Firefox"**.
-2. **„Temporäres Add-on laden…"** → die Datei **`dist/firefox/manifest.json`** auswählen.
+1. `about:debugging` öffnen → **„Dieser Firefox"**.
+2. Im Bereich **„Temporäre Erweiterungen"** (falls eingeklappt: Überschrift anklicken) auf **„Temporäres Add-on laden…"** → die Datei **`dist/firefox/manifest.json`** auswählen.
 
-> ℹ️ In Firefox ist das ein *temporäres* Add-on: Es verschwindet beim Schließen des Browsers und muss dann erneut geladen werden. Für eine dauerhafte Installation müsste das Add-on über einen Mozilla-Account signiert werden (`web-ext sign`).
+> ℹ️ In Firefox ist das ein *temporäres* Add-on: Es verschwindet beim Schließen des Browsers und muss dann erneut geladen werden. Grund: Firefox behält nur Add-ons dauerhaft, die Mozilla signiert hat ([Add-on-Signierung in Firefox](https://support.mozilla.org/de/kb/Add-on-Signierung-in-Firefox)). Die signierte, dauerhaft installierbare Ausgabe kommt mit Version 0.8.5; wer selbst signieren will: [Mozilla-Anleitung zur Self-Distribution](https://extensionworkshop.com/documentation/publish/self-distribution/).
 
 Anschließend auf das Ampel-Symbol klicken und **„Jetzt prüfen"** – der erste Lauf setzt die Vergleichsbasis, ab dann werden Änderungen erkannt.
 
