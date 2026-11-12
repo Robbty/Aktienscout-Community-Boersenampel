@@ -40,3 +40,7 @@ Handoff-rollover.md
 
 # Merkdatei von web-ext sign im signierten Ordner (gehört nicht ins Paket)
 .amo-upload-uuid
+
+# Übergabe an den nächsten Chat (nur lokal, Regel in ~/.claude/CLAUDE.md)
+next-prompt.md
+next-prompt.bak
