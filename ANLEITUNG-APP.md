@@ -124,9 +124,10 @@ oder im Circle gekauft/verkauft wird:
    ins Suchfeld **„Akku-Optimierung"** eintippen, dort „Alle Apps" anzeigen,
    Börsenampel auf **„Nicht optimieren"** stellen.)
 
-> 💡 Android prüft im Hintergrund frühestens alle 15 Minuten und darf sich im
-> Stromsparmodus auch mehr Zeit lassen. Die Meldung kommt also zeitnah, aber
-> nicht sekundengenau.
+> 💡 Im Hintergrund prüft die App etwa einmal pro Stunde, auch wenn unten bei
+> „Prüfen alle … Min." weniger eingestellt ist. Ein größerer Wert dort macht die
+> Prüfung seltener. Im Stromsparmodus darf sich Android zusätzlich Zeit lassen.
+> Die Meldung kommt also meist innerhalb einer Stunde, manchmal auch später.
 
 ## Updates – kommen von selbst 🔄
 

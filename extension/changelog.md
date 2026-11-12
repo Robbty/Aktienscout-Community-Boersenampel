@@ -18,6 +18,7 @@
 
 ## App 0.8.5 – 31.08.2026
 - Behoben: Auf schmalen Bildschirmen (Handy) war das Verlauf-Fenster etwas größer als der Bildschirm – jetzt brechen die Zeitraum-Knöpfe um, die Kurven-Schalter scrollen bei Platznot, nichts ragt mehr hinaus.
+- Doku: App-Anleitung berichtigt (12.11.2026) – die App prüft im Hintergrund etwa einmal pro Stunde, nicht „frühestens alle 15 Minuten"; ein kürzerer Abstand bei „Prüfen alle … Min." ändert daran nichts.
 
 ## 0.8.4 – 31.08.2026
 - Chart- und Verlauf-Fenster passen sich kleinen Fenstern an: Zeitraum-Knöpfe brechen unter den Titel um, die Legende scrollt bei Platznot innen, die Seite wird nie größer als das Fenster.
